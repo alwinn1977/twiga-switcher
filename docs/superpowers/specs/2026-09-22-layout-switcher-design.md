@@ -44,7 +44,7 @@ With US and Russian input sources installed and the required macOS permissions g
 5. Commands, navigation, mouse clicks, focus changes, and app changes cannot cause an earlier word to be modified.
 6. No correction is attempted in known terminal or remote-desktop applications or in a field identified as secure or unsafe.
 7. Synthetic replacement events are never added back to the captured word buffer.
-8. TextEdit and Notes work in manual smoke tests. Safari and Chrome ordinary text inputs work when Accessibility exposes a safe editable field.
+8. TextEdit and Notes work in manual smoke tests. Safari, Chrome, and Visual Studio Code ordinary text inputs work when Accessibility exposes a safe editable field.
 9. The application stores only preferences; it neither stores nor transmits typed text.
 
 ## Technical Constraints
@@ -195,9 +195,10 @@ Build and launch the generated `.app`, grant Accessibility and Input Monitoring,
 1. Both correction directions and case preservation in TextEdit.
 2. Both correction directions in Notes.
 3. Ordinary text inputs in Safari and Chrome.
-4. No change for `docker`, valid Russian words, keyboard shortcuts, arrow navigation, or mouse focus changes.
-5. No correction in Terminal/iTerm or a secure password field.
-6. Pause/resume, permission status, and Quit from the menu bar.
+4. An ordinary editor field in Visual Studio Code.
+5. No change for `docker`, valid Russian words, keyboard shortcuts, arrow navigation, or mouse focus changes.
+6. No correction in Terminal/iTerm or a secure password field.
+7. Pause/resume, permission status, and Quit from the menu bar.
 
 ## Repository Shape
 
