@@ -17,5 +17,10 @@ public struct LexiconMatch: Equatable, Sendable {
 }
 
 public protocol FrequencyLexicon: Sendable {
+    var maximumPhraseWords: Int { get }
     func lookup(_ text: String, language: Language) -> LexiconMatch
+}
+
+public extension FrequencyLexicon {
+    var maximumPhraseWords: Int { 1 }
 }
