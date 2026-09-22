@@ -29,7 +29,7 @@ Increase correction coverage for Russian and English while keeping keyboard proc
 
 ## Data sources and licensing
 
-The base frequency data will be generated from the English and Russian lists in `wordfreq` 3.2.0, pinned by package version and artifact checksum in the generation script. `wordfreq` code is Apache-2.0 and its redistributed frequency data is CC BY-SA 4.0. The generated `.lsidx` files are treated as adapted data under CC BY-SA 4.0, kept separable from the application code, and shipped with the upstream `NOTICE`, attribution, source URL, version, and license text.
+The base frequency data will be generated from the English and Russian lists in `wordfreq` 3.1.1, the latest official PyPI artifact available during implementation, pinned by package version and artifact checksum in the generation script. `wordfreq` code is Apache-2.0 and its redistributed frequency data is CC BY-SA 4.0. The generated `.lsidx` files are treated as adapted data under CC BY-SA 4.0, kept separable from the application code, and shipped with the upstream `NOTICE`, attribution, source URL, version, and license text.
 
 Only the generated indexes are application runtime resources. Python and `wordfreq` are build-time tooling and are not runtime dependencies. The generation script must produce deterministic output and a manifest with input and output SHA-256 checksums.
 

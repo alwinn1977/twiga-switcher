@@ -6,7 +6,7 @@
 
 **Architecture:** `LayoutSwitcherCore` owns normalization, confidence policy, phrase buffering, and platform-independent rule contracts. A new `LayoutSwitcherLexicon` target owns the deterministic binary format, compiler, `mmap` reader, pack validation/import, and immutable catalog snapshots. `LayoutSwitcherApp` composes those pieces with the event tap, local persistence, and native management windows; all slow work happens outside the keyboard callback.
 
-**Tech Stack:** Swift 6, Swift Package Manager, SwiftUI/AppKit, Darwin `mmap`, Foundation JSON/TSV handling, CryptoKit SHA-256, XCTest, Python 3 with build-time `wordfreq` 3.2.0.
+**Tech Stack:** Swift 6, Swift Package Manager, SwiftUI/AppKit, Darwin `mmap`, Foundation JSON/TSV handling, CryptoKit SHA-256, XCTest, Python 3 with build-time `wordfreq` 3.1.1.
 
 **Spec:** `docs/superpowers/specs/2026-09-22-frequency-lexicons-design.md`
 
@@ -17,7 +17,7 @@
 - Runtime lookup must not call `NSSpellChecker`, perform normal file reads, or materialize a full lexicon as a Swift collection.
 - Base and compiled subject indexes are read-only `mmap` regions with strict bounds and checksum validation.
 - Input state is limited to eight whitespace-separated tokens and 128 Unicode scalars and is cleared at every existing focus-safety boundary.
-- Base data comes from pinned `wordfreq` 3.2.0 artifacts and is redistributed with the required Apache-2.0 / CC BY-SA 4.0 notices.
+- Base data comes from the pinned official `wordfreq` 3.1.1 artifact and is redistributed with the required Apache-2.0 / CC BY-SA 4.0 notices.
 - Imported source is limited to 50 MiB, 1,000,000 entries, 4 KiB per line, languages `en` and `ru`, and scores 0...8,000.
 - The built-in Computer Terms pack is enabled by default and supports individual, punctuation-bearing, and multiword terms.
 - Implementation stays on `feature/frequency-lexicons`; verified work is merged directly into `main` with `--no-ff`.
@@ -239,7 +239,7 @@ git commit -m "feat: add memory mapped lexicon index"
 - Create: `Sources/LayoutSwitcherLexicon/Resources/Lexicons/Base/ru.lsidx`
 - Create: `Sources/LayoutSwitcherLexicon/Resources/Licenses/wordfreq-NOTICE.md`
 - Create: `Sources/LayoutSwitcherLexicon/Resources/Licenses/CC-BY-SA-4.0.txt`
-- Create: `Sources/LayoutSwitcherLexicon/Resources/BundledLexiconResources.swift`
+- Create: `Sources/LayoutSwitcherLexicon/Bundled/BundledLexiconResources.swift`
 - Test: `Tests/LayoutSwitcherLexiconTests/BundledLexiconResourceTests.swift`
 - Modify: `Package.swift`
 
@@ -267,7 +267,7 @@ Expected: PASS.
 
 - [ ] **Step 3: Add the pinned wordfreq exporter and notices**
 
-`export-wordfreq.py` must assert `wordfreq.__version__ == "3.2.0"`, enumerate the large English and Russian lists, query Zipf scores, normalize through an equivalent documented pipeline, write `language<TAB>score<TAB>term`, and record the wheel SHA-256 supplied by `generate-base-lexicons.sh`. The shell script uses a temporary virtual environment and refuses an unpinned package.
+`export-wordfreq.py` must assert the installed package metadata reports `wordfreq` 3.1.1, enumerate the large English and Russian lists, query Zipf scores, normalize through an equivalent documented pipeline, write `language<TAB>score<TAB>term`, and record the wheel SHA-256 supplied by `generate-base-lexicons.sh`. The shell script uses a temporary virtual environment and refuses an unpinned package.
 
 Run: `zsh scripts/generate-base-lexicons.sh --check-tools`
 
