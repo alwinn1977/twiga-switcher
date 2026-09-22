@@ -32,6 +32,27 @@ final class MappedLexiconTests: XCTestCase {
         XCTAssertEqual(lexicon.lookup("cafe\u{301}", language: .english).score, 3_500)
     }
 
+    func testLongerSingleWordDoesNotMarkCompleteWordAsPhrasePrefix() throws {
+        let url = try compileFixture([
+            .init(language: .english, key: "hello", score: 5_000, flags: []),
+            .init(language: .english, key: "hellos", score: 3_000, flags: [])
+        ])
+        let lexicon = try MappedLexicon(url: url, expectedLanguage: .english)
+
+        XCTAssertFalse(lexicon.lookup("hello", language: .english).isStrictPrefix)
+    }
+
+    func testSpaceAndPeriodContinuationMarkPhrasePrefix() throws {
+        let url = try compileFixture([
+            .init(language: .english, key: "machine learning", score: 4_200, flags: [.subjectTerm]),
+            .init(language: .english, key: "node.js", score: 4_200, flags: [.subjectTerm])
+        ])
+        let lexicon = try MappedLexicon(url: url, expectedLanguage: .english)
+
+        XCTAssertTrue(lexicon.lookup("machine", language: .english).isStrictPrefix)
+        XCTAssertTrue(lexicon.lookup("node", language: .english).isStrictPrefix)
+    }
+
     func testRejectsEveryTruncationBeforePublishingMappedPointers() throws {
         let completeURL = try compileFixture([
             .init(language: .english, key: "hello", score: 5_000, flags: [])

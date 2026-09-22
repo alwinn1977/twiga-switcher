@@ -121,15 +121,10 @@ public final class MappedLexicon: @unchecked Sendable, FrequencyLexicon {
         }
 
         var isStrictPrefix = false
-        var prefixIndex = insertionIndex
-        if score != nil { prefixIndex += 1 }
+        let prefixIndex = insertionIndex + (score == nil ? 0 : 1)
         if prefixIndex < entryCount,
            let next = try? record(at: prefixIndex) {
-            isStrictPrefix = next.key.count > query.count && next.key.starts(with: query)
-        } else if score == nil,
-                  insertionIndex < entryCount,
-                  let next = try? record(at: insertionIndex) {
-            isStrictPrefix = next.key.count > query.count && next.key.starts(with: query)
+            isStrictPrefix = Self.isPhraseContinuation(next.key, after: query)
         }
 
         return LexiconMatch(
@@ -159,6 +154,12 @@ public final class MappedLexicon: @unchecked Sendable, FrequencyLexicon {
             }
         }
         return lower
+    }
+
+    private static func isPhraseContinuation(_ key: Data, after query: Data) -> Bool {
+        guard key.count > query.count, key.starts(with: query) else { return false }
+        let separator = key[key.index(key.startIndex, offsetBy: query.count)]
+        return separator == 0x20 || separator == 0x2E
     }
 
     private func record(at index: Int) throws -> Record {
