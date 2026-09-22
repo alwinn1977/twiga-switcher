@@ -10,8 +10,10 @@ let package = Package(
     ],
     targets: [
         .target(name: "LayoutSwitcherCore"),
-        .executableTarget(name: "LayoutSwitcherApp", dependencies: ["LayoutSwitcherCore"], resources: [.process("Resources")]),
+        .target(name: "LayoutSwitcherLexicon", dependencies: ["LayoutSwitcherCore"]),
+        .executableTarget(name: "LayoutSwitcherApp", dependencies: ["LayoutSwitcherCore", "LayoutSwitcherLexicon"], resources: [.process("Resources")]),
         .testTarget(name: "LayoutSwitcherCoreTests", dependencies: ["LayoutSwitcherCore"]),
+        .testTarget(name: "LayoutSwitcherLexiconTests", dependencies: ["LayoutSwitcherLexicon", "LayoutSwitcherCore"]),
         .testTarget(name: "LayoutSwitcherAppTests", dependencies: ["LayoutSwitcherApp", "LayoutSwitcherCore"]),
     ],
     swiftLanguageModes: [.v6]
