@@ -28,4 +28,8 @@ public final class ReplacementExecutor {
               eventPoster.postUnicode(plan.delimiter) else { return .partialFailure }
         return inputSources.select(plan.targetLayout) ? .completed : .textReplacedLayoutUnavailable
     }
+
+    public func reverse(_ plan: ReplacementPlan) -> ReplacementExecutionResult {
+        execute(plan)
+    }
 }

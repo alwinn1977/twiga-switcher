@@ -59,4 +59,17 @@ final class ReplacementExecutorTests: XCTestCase {
         XCTAssertEqual(ReplacementEventDisposition.resolve(.partialFailure), .suppressOriginal)
         XCTAssertEqual(ReplacementEventDisposition.resolve(.textReplacedLayoutUnavailable), .suppressOriginal)
     }
+
+    func testReverseUsesTheSameSinglePassSafetyContract() {
+        let events = RecordingEventPoster()
+        let sources = RecordingInputSourceManager(result: true)
+        let executor = ReplacementExecutor(eventPoster: events, inputSources: sources)
+
+        XCTAssertEqual(
+            executor.reverse(.init(deleteKeyCount: 7, replacement: "ghbdtn", delimiter: " ", targetLayout: .english)),
+            .completed
+        )
+        XCTAssertEqual(events.actions, [.backspace(count: 7), .unicode("ghbdtn"), .unicode(" ")])
+        XCTAssertEqual(sources.selectedLayouts, [.english])
+    }
 }

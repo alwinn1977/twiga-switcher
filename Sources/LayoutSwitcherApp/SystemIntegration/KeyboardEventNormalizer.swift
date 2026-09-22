@@ -18,6 +18,13 @@ public struct KeyboardEventNormalizer: Sendable {
 
     public func normalize(_ event: RawKeyEvent) -> InputEvent {
         if event.marker == syntheticMarker { return .synthetic }
+        let unsafeWithoutCommand: CGEventFlags = [.maskControl, .maskAlternate]
+        if event.flags.contains(.maskCommand),
+           event.flags.intersection(unsafeWithoutCommand).isEmpty,
+           !event.flags.contains(.maskShift),
+           event.text.lowercased() == "z" {
+            return .commandZ
+        }
         if !event.flags.intersection([.maskCommand, .maskControl, .maskAlternate]).isEmpty { return .reset }
         if event.keyCode == 51 { return .backspace }
         if event.keyCode == 36 || event.keyCode == 76 { return .boundary("\n") }

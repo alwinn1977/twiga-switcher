@@ -2,8 +2,19 @@ public enum InputEvent: Equatable, Sendable {
     case character(Character)
     case boundary(String)
     case backspace
+    case commandZ
     case reset
     case synthetic
+}
+
+public struct CorrectionPair: Equatable, Sendable {
+    public let source: String
+    public let candidate: String
+
+    public init(source: String, candidate: String) {
+        self.source = source
+        self.candidate = candidate
+    }
 }
 
 public struct BufferedCandidate: Equatable, Sendable {

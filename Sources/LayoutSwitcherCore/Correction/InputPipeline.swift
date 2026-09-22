@@ -2,6 +2,7 @@ public struct InputPipeline<Lexicon: FrequencyLexicon, Rules: UserCorrectionRule
     private var buffer = PhraseBuffer()
     private let converter: LayoutConverter
     private let detector: LanguageDetector<Lexicon, Rules>
+    public private(set) var latestDecisionPair: CorrectionPair?
 
     public init(converter: LayoutConverter, detector: LanguageDetector<Lexicon, Rules>) {
         self.converter = converter; self.detector = detector
@@ -22,6 +23,7 @@ public struct InputPipeline<Lexicon: FrequencyLexicon, Rules: UserCorrectionRule
 
         for candidate in candidates {
             guard let conversion = converter.convert(candidate.text) else { continue }
+            latestDecisionPair = CorrectionPair(source: candidate.text, candidate: conversion.text)
             switch detector.decision(original: candidate.text, conversion: conversion) {
             case let .correct(text, layout):
                 buffer.resolve(result, disposition: .corrected)

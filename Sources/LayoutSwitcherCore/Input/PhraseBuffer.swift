@@ -57,7 +57,7 @@ public struct PhraseBuffer: Sendable {
             clear()
             return .cleared
 
-        case .synthetic:
+        case .commandZ, .synthetic:
             return .buffered
         }
     }

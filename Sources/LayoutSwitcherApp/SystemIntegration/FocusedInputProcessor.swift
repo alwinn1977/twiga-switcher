@@ -8,6 +8,8 @@ public struct FocusedInputProcessor<Lexicon: FrequencyLexicon, Rules: UserCorrec
         self.pipeline = pipeline
     }
 
+    public var latestDecisionPair: CorrectionPair? { pipeline.latestDecisionPair }
+
     public func needsFocusSnapshot(for event: InputEvent) -> Bool {
         switch event {
         case .character:
@@ -16,6 +18,8 @@ public struct FocusedInputProcessor<Lexicon: FrequencyLexicon, Rules: UserCorrec
             return true
         case .backspace, .reset, .synthetic:
             return false
+        case .commandZ:
+            return true
         }
     }
 
@@ -50,6 +54,9 @@ public struct FocusedInputProcessor<Lexicon: FrequencyLexicon, Rules: UserCorrec
 
         case .reset:
             reset()
+            return .passThrough
+
+        case .commandZ:
             return .passThrough
 
         case .backspace, .synthetic:
