@@ -11,6 +11,8 @@ public final class DictionaryPackStore: @unchecked Sendable {
     private let lock = NSLock()
     private var enabledIdentifiers: Set<String>
 
+    public var directoryURL: URL { rootURL }
+
     public init(rootURL: URL) throws {
         self.rootURL = rootURL.standardizedFileURL
         self.stateURL = self.rootURL.appendingPathComponent("enabled-packs.json")
@@ -69,7 +71,7 @@ public final class DictionaryPackStore: @unchecked Sendable {
             throw DictionaryPackError.invalidIdentifier
         }
         let directory = rootURL.appendingPathComponent(identifier, isDirectory: true).standardizedFileURL
-        guard directory.deletingLastPathComponent() == rootURL else {
+        guard directory.deletingLastPathComponent().standardizedFileURL.path == rootURL.path else {
             throw DictionaryPackError.invalidIdentifier
         }
         if FileManager.default.fileExists(atPath: directory.path) {

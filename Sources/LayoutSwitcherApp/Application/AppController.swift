@@ -83,6 +83,10 @@ public final class AppController: ObservableObject {
         }
     }
 
+    public func reloadDictionaries() async {
+        await monitor.reloadDictionaries()
+    }
+
     private func handleMonitorStopped(_ message: String) {
         lastError = message
         state = .resolve(

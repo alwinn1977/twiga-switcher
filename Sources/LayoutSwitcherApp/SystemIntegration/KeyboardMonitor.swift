@@ -10,7 +10,7 @@ private func layoutSwitcherTapCallback(
     return Unmanaged<KeyboardMonitor>.fromOpaque(userInfo).takeUnretainedValue().handle(type: type, event: event)
 }
 
-public protocol KeyboardMonitoring: AnyObject {
+public protocol KeyboardMonitoring: AnyObject, Sendable {
     var isRunning: Bool { get }
     var startError: String? { get }
     var onStopped: ((String) -> Void)? { get set }
@@ -19,11 +19,13 @@ public protocol KeyboardMonitoring: AnyObject {
     func start() -> Bool
     func stop()
     func setRule(_ disposition: UserCorrectionDisposition, for pair: CorrectionPair) throws
+    func reloadDictionaries() async
 }
 
 public extension KeyboardMonitoring {
     var startError: String? { nil }
     func setRule(_ disposition: UserCorrectionDisposition, for pair: CorrectionPair) throws {}
+    func reloadDictionaries() async {}
 }
 
 public final class KeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
@@ -53,7 +55,7 @@ public final class KeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
             inputSources: InputSourceManager()
         )
     ) {
-        let resolvedRuleStore = ruleStore ?? Self.makeDefaultRuleStore()
+        let resolvedRuleStore = ruleStore ?? .sharedDefault
         self.lexiconService = lexiconService
         self.ruleStore = resolvedRuleStore
         self.correctionCoordinator = LastCorrectionCoordinator(ruleStore: resolvedRuleStore)
@@ -197,18 +199,8 @@ public final class KeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
         try ruleStore.set(disposition: disposition, source: pair.source, candidate: pair.candidate)
     }
 
-    private static func makeDefaultRuleStore() -> UserRuleStore {
-        let applicationSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
-            .first ?? FileManager.default.temporaryDirectory
-        let url = applicationSupport
-            .appendingPathComponent("LayoutSwitcher", isDirectory: true)
-            .appendingPathComponent("rules.json")
-        if let store = try? UserRuleStore(fileURL: url) { return store }
-        let fallback = FileManager.default.temporaryDirectory
-            .appendingPathComponent("LayoutSwitcher-rules-\(UUID().uuidString).json")
-        guard let store = try? UserRuleStore(fileURL: fallback) else {
-            preconditionFailure("Unable to create user rule store")
-        }
-        return store
+    public func reloadDictionaries() async {
+        await lexiconService.reloadPacks()
     }
+
 }

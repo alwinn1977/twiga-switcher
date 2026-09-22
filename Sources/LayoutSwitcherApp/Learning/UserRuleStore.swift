@@ -2,6 +2,20 @@ import Foundation
 import LayoutSwitcherCore
 
 public final class UserRuleStore: @unchecked Sendable, UserCorrectionRuleLookingUp {
+    public static let sharedDefault: UserRuleStore = {
+        let applicationSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
+            .first ?? FileManager.default.temporaryDirectory
+        let url = applicationSupport
+            .appendingPathComponent("LayoutSwitcher", isDirectory: true)
+            .appendingPathComponent("rules.json")
+        if let store = try? UserRuleStore(fileURL: url) { return store }
+        let fallback = FileManager.default.temporaryDirectory
+            .appendingPathComponent("LayoutSwitcher-rules-\(UUID().uuidString).json")
+        guard let store = try? UserRuleStore(fileURL: fallback) else {
+            preconditionFailure("Unable to create user rule store")
+        }
+        return store
+    }()
     private struct Document: Codable {
         let schemaVersion: Int
         let rules: [UserRule]

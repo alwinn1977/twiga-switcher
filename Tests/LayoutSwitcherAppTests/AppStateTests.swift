@@ -9,7 +9,7 @@ private final class StubPermissionManager: PermissionManaging {
     func openSettings() {}
 }
 
-private final class StubKeyboardMonitor: KeyboardMonitoring {
+private final class StubKeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
     var isRunning = false
     var onStopped: ((String) -> Void)?
     var onDiagnostic: ((String) -> Void)?

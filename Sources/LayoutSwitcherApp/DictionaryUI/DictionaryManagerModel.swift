@@ -1,0 +1,144 @@
+import Combine
+import Foundation
+import LayoutSwitcherLexicon
+
+public struct DictionaryManagerRow: Identifiable, Equatable, Sendable {
+    public let id: String
+    public let name: String
+    public let version: String
+    public let detail: String
+    public let isBase: Bool
+    public let isBuiltIn: Bool
+    public var isEnabled: Bool
+    public let canRemove: Bool
+    public let noticeURL: URL?
+}
+
+@MainActor
+public final class DictionaryManagerModel: ObservableObject {
+    public typealias Confirmation = @MainActor (DictionaryManagerRow) -> Bool
+    public typealias CatalogReload = @MainActor () async -> Void
+
+    @Published public private(set) var rows: [DictionaryManagerRow] = []
+    @Published public private(set) var isWorking = false
+    @Published public private(set) var statusMessage: String?
+
+    private let store: DictionaryPackStore
+    private let importer: DictionaryPackImporter
+    private let confirmRemoval: Confirmation
+    private let reloadCatalog: CatalogReload
+
+    public init(
+        store: DictionaryPackStore? = nil,
+        importer: DictionaryPackImporter = .init(),
+        confirmRemoval: @escaping Confirmation = { _ in true },
+        reloadCatalog: @escaping CatalogReload = {}
+    ) {
+        if let store {
+            self.store = store
+        } else if let created = try? DictionaryPackStore(rootURL: LexiconService.defaultPacksRootURL) {
+            self.store = created
+        } else {
+            preconditionFailure("Unable to open dictionary store")
+        }
+        self.importer = importer
+        self.confirmRemoval = confirmRemoval
+        self.reloadCatalog = reloadCatalog
+        refresh()
+    }
+
+    public func refresh() {
+        var result = [
+            DictionaryManagerRow(
+                id: "dev.layoutswitcher.base.english",
+                name: "English Frequency Dictionary",
+                version: "wordfreq 3.1.1",
+                detail: "Base dictionary · always enabled",
+                isBase: true,
+                isBuiltIn: true,
+                isEnabled: true,
+                canRemove: false,
+                noticeURL: nil
+            ),
+            DictionaryManagerRow(
+                id: "dev.layoutswitcher.base.russian",
+                name: "Russian Frequency Dictionary",
+                version: "wordfreq 3.1.1",
+                detail: "Base dictionary · always enabled",
+                isBase: true,
+                isBuiltIn: true,
+                isEnabled: true,
+                canRemove: false,
+                noticeURL: nil
+            ),
+            DictionaryManagerRow(
+                id: "dev.layoutswitcher.dictionary.computer-terms",
+                name: "Computer Terms",
+                version: "1.0.0",
+                detail: "Built-in subject dictionary",
+                isBase: false,
+                isBuiltIn: true,
+                isEnabled: true,
+                canRemove: false,
+                noticeURL: nil
+            ),
+        ]
+        if let packs = try? store.installedPacks() {
+            result.append(contentsOf: packs.map { pack in
+                let count = pack.indexManifest.indexes.values.reduce(0) { $0 + $1.entryCount }
+                let languages = pack.indexManifest.indexes.keys.sorted().joined(separator: ", ")
+                let notice = pack.directoryURL.appendingPathComponent("NOTICE.txt")
+                return DictionaryManagerRow(
+                    id: pack.identifier,
+                    name: pack.manifest.name,
+                    version: pack.manifest.version,
+                    detail: "\(languages) · \(count) entries · \(pack.manifest.attribution.license)",
+                    isBase: false,
+                    isBuiltIn: false,
+                    isEnabled: store.isEnabled(pack.identifier),
+                    canRemove: true,
+                    noticeURL: FileManager.default.fileExists(atPath: notice.path) ? notice : nil
+                )
+            })
+        }
+        rows = result
+    }
+
+    public func importPackage(at url: URL) async {
+        isWorking = true
+        statusMessage = nil
+        defer { isWorking = false }
+        do {
+            let installed = try await importer.importPackage(at: url, into: store.directoryURL, existingPolicy: .replace)
+            try store.setEnabled(true, identifier: installed.identifier)
+            await reloadCatalog()
+            refresh()
+            statusMessage = "Imported \(installed.manifest.name)"
+        } catch {
+            statusMessage = "Import failed: \(error)"
+        }
+    }
+
+    public func setEnabled(_ enabled: Bool, row: DictionaryManagerRow) async {
+        guard !row.isBase, !row.isBuiltIn else { return }
+        do {
+            try store.setEnabled(enabled, identifier: row.id)
+            await reloadCatalog()
+            refresh()
+        } catch {
+            statusMessage = "Unable to update dictionary: \(error)"
+        }
+    }
+
+    public func remove(_ row: DictionaryManagerRow) async {
+        guard row.canRemove, confirmRemoval(row) else { return }
+        do {
+            try store.removeConfirmed(identifier: row.id)
+            await reloadCatalog()
+            refresh()
+        } catch {
+            statusMessage = "Unable to remove dictionary: \(error)"
+        }
+    }
+
+}

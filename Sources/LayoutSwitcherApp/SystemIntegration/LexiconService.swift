@@ -28,6 +28,16 @@ public enum LexiconServiceError: Error, CustomStringConvertible, Sendable {
 public final class LexiconService: @unchecked Sendable {
     public typealias BaseLoader = @Sendable () throws -> BundledBaseLexicons
 
+    public static var defaultPacksRootURL: URL {
+        let applicationSupport = FileManager.default.urls(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask
+        ).first ?? FileManager.default.temporaryDirectory
+        return applicationSupport
+            .appendingPathComponent("LayoutSwitcher", isDirectory: true)
+            .appendingPathComponent("Dictionaries", isDirectory: true)
+    }
+
     public let catalog: LexiconCatalog
 
     private let baseLoader: BaseLoader
@@ -38,15 +48,9 @@ public final class LexiconService: @unchecked Sendable {
     private var publishedFatalDiagnostic: LexiconServiceDiagnostic?
 
     public convenience init() {
-        let applicationSupport = FileManager.default.urls(
-            for: .applicationSupportDirectory,
-            in: .userDomainMask
-        ).first ?? FileManager.default.temporaryDirectory
         self.init(
             baseLoader: { try BundledLexiconResources.loadBase() },
-            packsRootURL: applicationSupport
-                .appendingPathComponent("LayoutSwitcher", isDirectory: true)
-                .appendingPathComponent("Dictionaries", isDirectory: true)
+            packsRootURL: Self.defaultPacksRootURL
         )
     }
 
