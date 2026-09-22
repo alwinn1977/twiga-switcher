@@ -16,6 +16,9 @@ struct LayoutSwitcherMain: App {
                 Button("Request Required Permissions") { controller.requestPermissions() }
                 Button("Open Privacy Settings") { controller.openPrivacySettings() }
             }
+            if case .error = controller.state {
+                Button("Restart Monitor") { controller.restartMonitor() }
+            }
             Divider()
             Button("Quit LayoutSwitcher") { NSApplication.shared.terminate(nil) }
         }

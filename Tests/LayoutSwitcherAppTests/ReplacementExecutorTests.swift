@@ -5,8 +5,14 @@ import LayoutSwitcherCore
 private final class RecordingEventPoster: EventPosting {
     enum Action: Equatable { case backspace(count: Int), unicode(String) }
     private(set) var actions: [Action] = []
-    func postBackspaces(count: Int) -> Bool { actions.append(.backspace(count: count)); return true }
-    func postUnicode(_ text: String) -> Bool { actions.append(.unicode(text)); return true }
+    var isAvailable = true
+    var backspaceResult = true
+    var unicodeResults: [Bool] = []
+    func postBackspaces(count: Int) -> Bool { actions.append(.backspace(count: count)); return backspaceResult }
+    func postUnicode(_ text: String) -> Bool {
+        actions.append(.unicode(text))
+        return unicodeResults.isEmpty ? true : unicodeResults.removeFirst()
+    }
 }
 
 private final class RecordingInputSourceManager: InputSourceManaging {
@@ -30,5 +36,27 @@ final class ReplacementExecutorTests: XCTestCase {
         let executor = ReplacementExecutor(eventPoster: events, inputSources: sources)
         XCTAssertEqual(executor.execute(.init(deleteKeyCount: 5, replacement: "hello", delimiter: " ", targetLayout: .english)), .textReplacedLayoutUnavailable)
         XCTAssertEqual(events.actions, [.backspace(count: 5), .unicode("hello"), .unicode(" ")])
+    }
+
+
+    func testFailureBeforeMutationCanPreserveOriginalDelimiter() {
+        let events = RecordingEventPoster()
+        events.isAvailable = false
+        let executor = ReplacementExecutor(eventPoster: events, inputSources: RecordingInputSourceManager(result: true))
+
+        XCTAssertEqual(executor.execute(.init(deleteKeyCount: 6, replacement: "привет", delimiter: " ", targetLayout: .russian)), .failedBeforeMutation)
+        XCTAssertEqual(events.actions, [])
+        XCTAssertEqual(ReplacementEventDisposition.resolve(.failedBeforeMutation), .passOriginal)
+    }
+
+    func testFailureAfterMutationSuppressesOriginalAndNeverRetries() {
+        let events = RecordingEventPoster()
+        events.unicodeResults = [false]
+        let executor = ReplacementExecutor(eventPoster: events, inputSources: RecordingInputSourceManager(result: true))
+
+        XCTAssertEqual(executor.execute(.init(deleteKeyCount: 6, replacement: "привет", delimiter: " ", targetLayout: .russian)), .partialFailure)
+        XCTAssertEqual(events.actions, [.backspace(count: 6), .unicode("привет")])
+        XCTAssertEqual(ReplacementEventDisposition.resolve(.partialFailure), .suppressOriginal)
+        XCTAssertEqual(ReplacementEventDisposition.resolve(.textReplacedLayoutUnavailable), .suppressOriginal)
     }
 }

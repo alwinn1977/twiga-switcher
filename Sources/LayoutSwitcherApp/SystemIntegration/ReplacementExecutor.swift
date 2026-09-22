@@ -3,7 +3,17 @@ import LayoutSwitcherCore
 public enum ReplacementExecutionResult: Equatable, Sendable {
     case completed
     case textReplacedLayoutUnavailable
-    case failed
+    case failedBeforeMutation
+    case partialFailure
+}
+
+public enum ReplacementEventDisposition: Equatable, Sendable {
+    case passOriginal
+    case suppressOriginal
+
+    public static func resolve(_ result: ReplacementExecutionResult) -> Self {
+        result == .failedBeforeMutation ? .passOriginal : .suppressOriginal
+    }
 }
 
 public final class ReplacementExecutor {
@@ -12,9 +22,10 @@ public final class ReplacementExecutor {
     public init(eventPoster: EventPosting, inputSources: InputSourceManaging) { self.eventPoster = eventPoster; self.inputSources = inputSources }
 
     public func execute(_ plan: ReplacementPlan) -> ReplacementExecutionResult {
+        guard eventPoster.isAvailable else { return .failedBeforeMutation }
         guard eventPoster.postBackspaces(count: plan.deleteKeyCount),
               eventPoster.postUnicode(plan.replacement),
-              eventPoster.postUnicode(plan.delimiter) else { return .failed }
+              eventPoster.postUnicode(plan.delimiter) else { return .partialFailure }
         return inputSources.select(plan.targetLayout) ? .completed : .textReplacedLayoutUnavailable
     }
 }

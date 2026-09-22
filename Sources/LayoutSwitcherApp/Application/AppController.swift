@@ -6,17 +6,30 @@ public final class AppController: ObservableObject {
     @Published public private(set) var state: AppState = .paused
     @Published public private(set) var isEnabled: Bool
 
-    private let permissions: PermissionManager
-    private let monitor: KeyboardMonitor
+    private let permissions: any PermissionManaging
+    private let monitor: any KeyboardMonitoring
     private var lastError: String?
     private var activationObserver: NSObjectProtocol?
 
-    public init(permissions: PermissionManager = PermissionManager(), monitor: KeyboardMonitor = KeyboardMonitor()) {
+    public init(
+        permissions: any PermissionManaging = PermissionManager(),
+        monitor: any KeyboardMonitoring = KeyboardMonitor(),
+        initialEnabled: Bool? = nil
+    ) {
         self.permissions = permissions
         self.monitor = monitor
-        self.isEnabled = UserDefaults.standard.object(forKey: "automaticCorrectionEnabled") as? Bool ?? true
+        self.isEnabled = initialEnabled
+            ?? UserDefaults.standard.object(forKey: "automaticCorrectionEnabled") as? Bool
+            ?? true
         monitor.onStopped = { [weak self] message in
-            Task { @MainActor in self?.lastError = message; self?.refresh() }
+            MainActor.assumeIsolated {
+                self?.handleMonitorStopped(message)
+            }
+        }
+        monitor.onDiagnostic = { [weak self] message in
+            MainActor.assumeIsolated {
+                self?.handleMonitorDiagnostic(message)
+            }
         }
         activationObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification,
@@ -37,9 +50,9 @@ public final class AppController: ObservableObject {
 
     public func refresh() {
         let snapshot = permissions.snapshot()
-        if isEnabled && snapshot == .granted {
+        if isEnabled && snapshot == .granted && lastError == nil {
             if !monitor.isRunning && !monitor.start() { lastError = "Unable to start keyboard monitor" }
-        } else {
+        } else if !isEnabled || snapshot != .granted {
             monitor.stop()
         }
         state = .resolve(enabled: isEnabled, permissions: snapshot, monitorRunning: monitor.isRunning, error: lastError)
@@ -47,4 +60,30 @@ public final class AppController: ObservableObject {
 
     public func requestPermissions() { permissions.request(); refresh() }
     public func openPrivacySettings() { permissions.openSettings() }
+
+    public func restartMonitor() {
+        monitor.stop()
+        lastError = nil
+        refresh()
+    }
+
+    private func handleMonitorStopped(_ message: String) {
+        lastError = message
+        state = .resolve(
+            enabled: isEnabled,
+            permissions: permissions.snapshot(),
+            monitorRunning: false,
+            error: message
+        )
+    }
+
+    private func handleMonitorDiagnostic(_ message: String) {
+        lastError = message
+        state = .resolve(
+            enabled: isEnabled,
+            permissions: permissions.snapshot(),
+            monitorRunning: monitor.isRunning,
+            error: message
+        )
+    }
 }
