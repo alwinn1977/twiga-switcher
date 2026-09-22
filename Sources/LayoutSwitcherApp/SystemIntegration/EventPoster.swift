@@ -1,6 +1,7 @@
 import CoreGraphics
 
 public protocol EventPosting: AnyObject {
+    var isAvailable: Bool { get }
     func postBackspaces(count: Int) -> Bool
     func postUnicode(_ text: String) -> Bool
 }
@@ -9,6 +10,8 @@ public final class EventPoster: EventPosting {
     public static let syntheticMarker: Int64 = 0x4C535743
     private let source = CGEventSource(stateID: .hidSystemState)
     public init() {}
+
+    public var isAvailable: Bool { source != nil }
 
     public func postBackspaces(count: Int) -> Bool {
         guard let source else { return false }

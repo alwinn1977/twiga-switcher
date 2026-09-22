@@ -10,6 +10,18 @@ final class SystemPolicyTests: XCTestCase {
         XCTAssertFalse(p.isSafe(.init(bundleID: "com.apple.TextEdit", role: "AXTextArea", subrole: nil, valueIsSettable: false)))
         XCTAssertTrue(p.isSafe(.init(bundleID: "com.apple.TextEdit", role: "AXTextArea", subrole: nil, valueIsSettable: true)))
     }
+
+    func testFocusPolicyRejectsUnknownAccessibilityLookups() {
+        let policy = FocusSafetyPolicy()
+        XCTAssertFalse(policy.isSafe(.init(
+            bundleID: "com.apple.TextEdit", role: "AXTextArea", subrole: nil, valueIsSettable: true,
+            subroleLookupSucceeded: false, settableLookupSucceeded: true
+        )))
+        XCTAssertFalse(policy.isSafe(.init(
+            bundleID: "com.apple.TextEdit", role: "AXTextArea", subrole: nil, valueIsSettable: true,
+            subroleLookupSucceeded: true, settableLookupSucceeded: false
+        )))
+    }
     func testResolverPrefersAppleIDThenLanguageFallback() {
         let s = [InputSourceDescriptor(id: "custom.en", languages: ["en"]), .init(id: "com.apple.keylayout.US", languages: ["en"]), .init(id: "custom.ru", languages: ["ru"])]
         XCTAssertEqual(InputSourceResolver.resolve(.english, from: s)?.id, "com.apple.keylayout.US")

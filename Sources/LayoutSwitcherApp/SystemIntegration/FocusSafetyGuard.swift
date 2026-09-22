@@ -1,24 +1,169 @@
 import AppKit
 import ApplicationServices
 
+public struct FocusIdentity: Equatable, @unchecked Sendable {
+    public let processID: pid_t
+    public let elementHash: UInt
+    private let element: AXUIElement?
+
+    public init(processID: pid_t, elementHash: UInt) {
+        self.processID = processID
+        self.elementHash = elementHash
+        self.element = nil
+    }
+
+    fileprivate init(processID: pid_t, element: AXUIElement) {
+        self.processID = processID
+        self.elementHash = CFHash(element)
+        self.element = element
+    }
+
+    public static func == (lhs: FocusIdentity, rhs: FocusIdentity) -> Bool {
+        guard lhs.processID == rhs.processID else { return false }
+        if let lhsElement = lhs.element, let rhsElement = rhs.element {
+            return CFEqual(lhsElement, rhsElement)
+        }
+        return lhs.elementHash == rhs.elementHash
+    }
+}
+
+public struct FocusSnapshot: Equatable, Sendable {
+    public let identity: FocusIdentity
+
+    public init(identity: FocusIdentity) {
+        self.identity = identity
+    }
+}
+
 public struct FocusDescriptor: Sendable {
-    public let bundleID: String?; public let role: String?; public let subrole: String?; public let valueIsSettable: Bool
-    public init(bundleID: String?, role: String?, subrole: String?, valueIsSettable: Bool) { self.bundleID = bundleID; self.role = role; self.subrole = subrole; self.valueIsSettable = valueIsSettable }
+    public let bundleID: String?
+    public let role: String?
+    public let subrole: String?
+    public let valueIsSettable: Bool
+    public let subroleLookupSucceeded: Bool
+    public let settableLookupSucceeded: Bool
+
+    public init(
+        bundleID: String?,
+        role: String?,
+        subrole: String?,
+        valueIsSettable: Bool,
+        subroleLookupSucceeded: Bool = true,
+        settableLookupSucceeded: Bool = true
+    ) {
+        self.bundleID = bundleID
+        self.role = role
+        self.subrole = subrole
+        self.valueIsSettable = valueIsSettable
+        self.subroleLookupSucceeded = subroleLookupSucceeded
+        self.settableLookupSucceeded = settableLookupSucceeded
+    }
 }
+
 public struct FocusSafetyPolicy: Sendable {
-    private let excluded = Set(["com.apple.Terminal","com.googlecode.iterm2","com.apple.ScreenSharing","com.microsoft.rdc.macos","com.realvnc.vncviewer"])
+    private let excludedBundleIDs = Set([
+        "com.apple.Terminal",
+        "com.googlecode.iterm2",
+        "com.apple.ScreenSharing",
+        "com.microsoft.rdc.macos",
+        "com.realvnc.vncviewer",
+    ])
+
     public init() {}
-    public func isSafe(_ d: FocusDescriptor) -> Bool { guard let id=d.bundleID, !excluded.contains(id), let role=d.role, d.valueIsSettable, d.subrole != "AXSecureTextField" else { return false }; return ["AXTextField","AXTextArea","AXComboBox"].contains(role) }
+
+    public func isSafe(_ descriptor: FocusDescriptor) -> Bool {
+        guard let bundleID = descriptor.bundleID,
+              !excludedBundleIDs.contains(bundleID),
+              let role = descriptor.role,
+              descriptor.subroleLookupSucceeded,
+              descriptor.settableLookupSucceeded,
+              descriptor.valueIsSettable,
+              descriptor.subrole != "AXSecureTextField" else {
+            return false
+        }
+
+        return ["AXTextField", "AXTextArea", "AXComboBox"].contains(role)
+    }
 }
-public struct FocusSafetyGuard {
-    public init() {}
-    public func isSafe() -> Bool {
-        guard let app = NSWorkspace.shared.frontmostApplication else { return false }
-        let axApp = AXUIElementCreateApplication(app.processIdentifier); var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(axApp, kAXFocusedUIElementAttribute as CFString, &value) == .success, let value else { return false }
-        let element = unsafeDowncast(value as AnyObject, to: AXUIElement.self)
-        func string(_ key: String) -> String? { var v: CFTypeRef?; guard AXUIElementCopyAttributeValue(element, key as CFString, &v) == .success else { return nil }; return v as? String }
-        var settable = DarwinBoolean(false); AXUIElementIsAttributeSettable(element, kAXValueAttribute as CFString, &settable)
-        return FocusSafetyPolicy().isSafe(.init(bundleID: app.bundleIdentifier, role: string(kAXRoleAttribute), subrole: string(kAXSubroleAttribute), valueIsSettable: settable.boolValue))
+
+public protocol FocusSnapshotProviding {
+    func snapshot() -> FocusSnapshot?
+}
+
+public struct FocusSafetyGuard: FocusSnapshotProviding {
+    private let messagingTimeout: Float
+
+    public init(messagingTimeout: Float = 0.05) {
+        self.messagingTimeout = messagingTimeout
+    }
+
+    public func snapshot() -> FocusSnapshot? {
+        guard let app = NSWorkspace.shared.frontmostApplication else { return nil }
+
+        let processID = app.processIdentifier
+        let axApp = AXUIElementCreateApplication(processID)
+        AXUIElementSetMessagingTimeout(axApp, messagingTimeout)
+
+        var focusedValue: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(
+            axApp,
+            kAXFocusedUIElementAttribute as CFString,
+            &focusedValue
+        ) == .success,
+        let focusedValue,
+        CFGetTypeID(focusedValue) == AXUIElementGetTypeID() else {
+            return nil
+        }
+
+        let element = unsafeDowncast(focusedValue as AnyObject, to: AXUIElement.self)
+        let role = stringAttribute(kAXRoleAttribute, from: element)
+        let subrole = optionalStringAttribute(kAXSubroleAttribute, from: element)
+
+        var settable = DarwinBoolean(false)
+        let settableResult = AXUIElementIsAttributeSettable(
+            element,
+            kAXValueAttribute as CFString,
+            &settable
+        )
+
+        let descriptor = FocusDescriptor(
+            bundleID: app.bundleIdentifier,
+            role: role,
+            subrole: subrole.value,
+            valueIsSettable: settable.boolValue,
+            subroleLookupSucceeded: subrole.succeeded,
+            settableLookupSucceeded: settableResult == .success
+        )
+        guard FocusSafetyPolicy().isSafe(descriptor) else { return nil }
+
+        return FocusSnapshot(identity: FocusIdentity(processID: processID, element: element))
+    }
+
+    private func stringAttribute(_ key: String, from element: AXUIElement) -> String? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, key as CFString, &value) == .success,
+              let string = value as? String else {
+            return nil
+        }
+        return string
+    }
+
+    private func optionalStringAttribute(
+        _ key: String,
+        from element: AXUIElement
+    ) -> (value: String?, succeeded: Bool) {
+        var value: CFTypeRef?
+        let result = AXUIElementCopyAttributeValue(element, key as CFString, &value)
+
+        switch result {
+        case .success:
+            guard let value else { return (nil, true) }
+            guard let string = value as? String else { return (nil, false) }
+            return (string, true)
+        case .noValue, .attributeUnsupported:
+            return (nil, true)
+        default:
+            return (nil, false)
+        }
     }
 }
