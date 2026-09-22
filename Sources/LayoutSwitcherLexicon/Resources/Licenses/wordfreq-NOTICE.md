@@ -1,4 +1,4 @@
-wordfreq  
+wordfreq
 Copyright 2022 Robyn Speer
 
 # Attribution notes
@@ -62,4 +62,3 @@ streaming Twitter API, in accordance with Twitter's Developer Agreement &
 Policy. This software gives statistics about words that were commonly used on
 Twitter; it does not display or republish any Twitter content, and does not
 contain any content from after Twitter's sale.
-
