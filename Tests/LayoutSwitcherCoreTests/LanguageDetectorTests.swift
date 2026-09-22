@@ -1,10 +1,13 @@
 import XCTest
 @testable import LayoutSwitcherCore
 
-private struct SetLexicon: WordLexicon {
+private struct SetLexicon: FrequencyLexicon {
     let english: Set<String>; let russian: Set<String>
-    func contains(_ word: String, language: Language) -> Bool {
-        language == .english ? english.contains(word.lowercased()) : russian.contains(word.lowercased())
+    func lookup(_ word: String, language: Language) -> LexiconMatch {
+        let contains = language == .english
+            ? english.contains(word.lowercased())
+            : russian.contains(word.lowercased())
+        return LexiconMatch(score: contains ? 3_000 : nil, isSubjectTerm: false, isStrictPrefix: false)
     }
 }
 

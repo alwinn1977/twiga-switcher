@@ -1,6 +1,7 @@
 import AppKit
 import CoreGraphics
 import LayoutSwitcherCore
+import LayoutSwitcherLexicon
 
 private func layoutSwitcherTapCallback(
     proxy: CGEventTapProxy, type: CGEventType, event: CGEvent, userInfo: UnsafeMutableRawPointer?
@@ -11,14 +12,20 @@ private func layoutSwitcherTapCallback(
 
 public protocol KeyboardMonitoring: AnyObject {
     var isRunning: Bool { get }
+    var startError: String? { get }
     var onStopped: ((String) -> Void)? { get set }
     var onDiagnostic: ((String) -> Void)? { get set }
     func start() -> Bool
     func stop()
 }
 
+public extension KeyboardMonitoring {
+    var startError: String? { nil }
+}
+
 public final class KeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
-    private var processor: FocusedInputProcessor<SystemLexicon, NoUserCorrectionRules>
+    private var processor: FocusedInputProcessor<LexiconCatalog, NoUserCorrectionRules>
+    private let lexiconService: LexiconService
     private let normalizer = KeyboardEventNormalizer(syntheticMarker: EventPoster.syntheticMarker)
     private let focusProvider: any FocusSnapshotProviding
     private let executor: ReplacementExecutor
@@ -27,21 +34,23 @@ public final class KeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
     private var source: CFRunLoopSource?
     private var activationObserver: NSObjectProtocol?
     public private(set) var isRunning = false
+    public private(set) var startError: String?
     public var onStopped: ((String) -> Void)?
     public var onDiagnostic: ((String) -> Void)?
 
     public init(
-        lexicon: SystemLexicon = SystemLexicon(),
+        lexiconService: LexiconService = LexiconService(),
         focusProvider: any FocusSnapshotProviding = FocusSafetyGuard(),
         executor: ReplacementExecutor = ReplacementExecutor(
             eventPoster: EventPoster(),
             inputSources: InputSourceManager()
         )
     ) {
+        self.lexiconService = lexiconService
         self.processor = FocusedInputProcessor(pipeline: InputPipeline(
             converter: LayoutConverter(),
             detector: LanguageDetector(
-                lexicon: lexicon,
+                lexicon: lexiconService.catalog,
                 rules: NoUserCorrectionRules()
             )
         ))
@@ -51,6 +60,16 @@ public final class KeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
 
     public func start() -> Bool {
         guard tap == nil else { return true }
+        do {
+            try lexiconService.start()
+            startError = nil
+        } catch {
+            startError = lexiconService.fatalDiagnostic?.message ?? String(describing: error)
+            return false
+        }
+        for diagnostic in lexiconService.diagnostics where !diagnostic.isFatal {
+            onDiagnostic?(diagnostic.message)
+        }
         health = TapHealth(maximumReenableAttempts: 1)
         let mask = [CGEventType.keyDown, .flagsChanged, .leftMouseDown, .rightMouseDown, .otherMouseDown]
             .reduce(CGEventMask(0)) { $0 | (CGEventMask(1) << $1.rawValue) }

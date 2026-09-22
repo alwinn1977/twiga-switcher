@@ -7,6 +7,8 @@ public struct InputPipeline<Lexicon: FrequencyLexicon, Rules: UserCorrectionRule
         self.converter = converter; self.detector = detector
     }
 
+    public var hasPendingText: Bool { buffer.hasPendingText }
+
     public mutating func handle(_ event: InputEvent, focusIsSafe: Bool) -> PipelineOutcome {
         guard event != .synthetic else { return .passThrough }
         let result = buffer.handle(event)

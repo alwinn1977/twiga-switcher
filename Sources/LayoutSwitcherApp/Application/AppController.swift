@@ -51,7 +51,9 @@ public final class AppController: ObservableObject {
     public func refresh() {
         let snapshot = permissions.snapshot()
         if isEnabled && snapshot == .granted && lastError == nil {
-            if !monitor.isRunning && !monitor.start() { lastError = "Unable to start keyboard monitor" }
+            if !monitor.isRunning && !monitor.start() {
+                lastError = monitor.startError ?? "Unable to start keyboard monitor"
+            }
         } else if !isEnabled || snapshot != .granted {
             monitor.stop()
         }

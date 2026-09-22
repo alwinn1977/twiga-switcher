@@ -33,13 +33,20 @@ public struct FocusedInputProcessor<Lexicon: FrequencyLexicon, Rules: UserCorrec
             }
             return pipeline.handle(event, focusIsSafe: true)
 
-        case .boundary:
-            defer { bufferedFocus = nil }
+        case let .boundary(delimiter):
+            if bufferedFocus == nil, delimiter == ".", let focus {
+                bufferedFocus = focus.identity
+                let outcome = pipeline.handle(event, focusIsSafe: true)
+                if !pipeline.hasPendingText { bufferedFocus = nil }
+                return outcome
+            }
             guard let focus, focus.identity == bufferedFocus else {
                 reset()
                 return .passThrough
             }
-            return pipeline.handle(event, focusIsSafe: true)
+            let outcome = pipeline.handle(event, focusIsSafe: true)
+            if !pipeline.hasPendingText { bufferedFocus = nil }
+            return outcome
 
         case .reset:
             reset()

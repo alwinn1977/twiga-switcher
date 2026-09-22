@@ -14,14 +14,16 @@ mkdir -p "$app_path/Contents/MacOS" "$app_path/Contents/Resources"
 cp "$bin_dir/LayoutSwitcherApp" "$app_path/Contents/MacOS/LayoutSwitcher"
 cp "$script_dir/Info.plist" "$app_path/Contents/Info.plist"
 
-for bundle_name in \
-  LayoutSwitcher_LayoutSwitcherApp.bundle \
-  LayoutSwitcher_LayoutSwitcherLexicon.bundle
-do
+app_resource_bundle="$bin_dir/LayoutSwitcher_LayoutSwitcherApp.bundle"
+if [[ -d "$app_resource_bundle" ]]; then
+  cp -R "$app_resource_bundle" "$app_path/Contents/Resources/"
+fi
+
+for bundle_name in LayoutSwitcher_LayoutSwitcherLexicon.bundle; do
   resource_bundle="$bin_dir/$bundle_name"
   if [[ ! -d "$resource_bundle" ]]; then
-    print -u2 -- "Missing required SwiftPM resource bundle: $resource_bundle"
-    exit 1
+      print -u2 -- "Missing required SwiftPM resource bundle: $resource_bundle"
+      exit 1
   fi
   cp -R "$resource_bundle" "$app_path/Contents/Resources/"
 done

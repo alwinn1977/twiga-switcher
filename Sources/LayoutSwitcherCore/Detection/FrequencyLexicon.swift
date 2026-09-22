@@ -1,3 +1,8 @@
+public enum Language: Equatable, Hashable, Sendable {
+    case english
+    case russian
+}
+
 public struct LexiconMatch: Equatable, Sendable {
     public let score: Int?
     public let isSubjectTerm: Bool

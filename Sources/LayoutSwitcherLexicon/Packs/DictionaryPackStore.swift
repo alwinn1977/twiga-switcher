@@ -33,6 +33,10 @@ public final class DictionaryPackStore: @unchecked Sendable {
         lock.withLock { enabledIdentifiers.contains(identifier) }
     }
 
+    public func enabledIdentifiersSnapshot() -> Set<String> {
+        lock.withLock { enabledIdentifiers }
+    }
+
     public func setEnabled(_ enabled: Bool, identifier: String) throws {
         guard DictionaryPackImporter.isValidIdentifier(identifier) else {
             throw DictionaryPackError.invalidIdentifier

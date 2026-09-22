@@ -18,6 +18,8 @@ public struct PhraseBuffer: Sendable {
     private var isBlocked = false
     private var hasProvisionalPunctuation = false
 
+    public var hasPendingText: Bool { !text.isEmpty && !isBlocked }
+
     public init(maxTokens: Int = 8, maxScalars: Int = 128) {
         precondition(maxTokens > 0 && maxScalars > 0)
         self.maxTokens = maxTokens

@@ -17,7 +17,7 @@ let package = Package(
             resources: [.process("Resources")]
         ),
         .executableTarget(name: "LexiconCompiler", dependencies: ["LayoutSwitcherLexicon", "LayoutSwitcherCore"]),
-        .executableTarget(name: "LayoutSwitcherApp", dependencies: ["LayoutSwitcherCore", "LayoutSwitcherLexicon"], resources: [.process("Resources")]),
+        .executableTarget(name: "LayoutSwitcherApp", dependencies: ["LayoutSwitcherCore", "LayoutSwitcherLexicon"]),
         .testTarget(name: "LayoutSwitcherCoreTests", dependencies: ["LayoutSwitcherCore"]),
         .testTarget(name: "LayoutSwitcherLexiconTests", dependencies: ["LayoutSwitcherLexicon", "LayoutSwitcherCore"]),
         .testTarget(name: "LayoutSwitcherAppTests", dependencies: ["LayoutSwitcherApp", "LayoutSwitcherCore"]),
