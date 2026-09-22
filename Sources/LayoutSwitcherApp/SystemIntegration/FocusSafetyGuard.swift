@@ -82,7 +82,14 @@ public struct FocusSafetyPolicy: Sendable {
             return false
         }
 
-        return ["AXTextField", "AXTextArea", "AXComboBox"].contains(role)
+        if ["AXTextField", "AXTextArea", "AXComboBox"].contains(role) {
+            return true
+        }
+        return bundleID == "com.openai.codex" && role == "AXGroup"
+    }
+
+    public func allowsApplicationLevelFallback(bundleID: String?) -> Bool {
+        bundleID == "com.openai.codex"
     }
 }
 
@@ -104,14 +111,23 @@ public struct FocusSafetyGuard: FocusSnapshotProviding {
         let axApp = AXUIElementCreateApplication(processID)
         AXUIElementSetMessagingTimeout(axApp, messagingTimeout)
 
+        let policy = FocusSafetyPolicy()
         var focusedValue: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(
+        let focusedResult = AXUIElementCopyAttributeValue(
             axApp,
             kAXFocusedUIElementAttribute as CFString,
             &focusedValue
-        ) == .success,
-        let focusedValue,
-        CFGetTypeID(focusedValue) == AXUIElementGetTypeID() else {
+        )
+        if focusedResult == .noValue,
+           policy.allowsApplicationLevelFallback(bundleID: app.bundleIdentifier) {
+            return FocusSnapshot(identity: FocusIdentity(
+                processID: processID,
+                elementHash: UInt(UInt32(bitPattern: processID))
+            ))
+        }
+        guard focusedResult == .success,
+              let focusedValue,
+              CFGetTypeID(focusedValue) == AXUIElementGetTypeID() else {
             return nil
         }
 
@@ -134,7 +150,7 @@ public struct FocusSafetyGuard: FocusSnapshotProviding {
             subroleLookupSucceeded: subrole.succeeded,
             settableLookupSucceeded: settableResult == .success
         )
-        guard FocusSafetyPolicy().isSafe(descriptor) else { return nil }
+        guard policy.isSafe(descriptor) else { return nil }
 
         return FocusSnapshot(identity: FocusIdentity(processID: processID, element: element))
     }

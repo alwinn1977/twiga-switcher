@@ -22,6 +22,26 @@ final class SystemPolicyTests: XCTestCase {
             subroleLookupSucceeded: true, settableLookupSucceeded: false
         )))
     }
+
+    func testCodexAllowsItsEditableGroupWithoutRelaxingOtherApps() {
+        let policy = FocusSafetyPolicy()
+
+        XCTAssertTrue(policy.isSafe(.init(
+            bundleID: "com.openai.codex",
+            role: "AXGroup",
+            subrole: nil,
+            valueIsSettable: true
+        )))
+        XCTAssertFalse(policy.isSafe(.init(
+            bundleID: "com.apple.Safari",
+            role: "AXGroup",
+            subrole: nil,
+            valueIsSettable: true
+        )))
+        XCTAssertTrue(policy.allowsApplicationLevelFallback(bundleID: "com.openai.codex"))
+        XCTAssertFalse(policy.allowsApplicationLevelFallback(bundleID: "com.apple.Safari"))
+        XCTAssertFalse(policy.allowsApplicationLevelFallback(bundleID: nil))
+    }
     func testResolverPrefersAppleIDThenLanguageFallback() {
         let s = [InputSourceDescriptor(id: "custom.en", languages: ["en"]), .init(id: "com.apple.keylayout.US", languages: ["en"]), .init(id: "custom.ru", languages: ["ru"])]
         XCTAssertEqual(InputSourceResolver.resolve(.english, from: s)?.id, "com.apple.keylayout.US")
