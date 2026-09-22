@@ -1,12 +1,14 @@
 import LayoutSwitcherCore
 
-public struct FocusedInputProcessor<Lexicon: WordLexicon> {
-    private var pipeline: InputPipeline<Lexicon>
+public struct FocusedInputProcessor<Lexicon: FrequencyLexicon, Rules: UserCorrectionRuleLookingUp> {
+    private var pipeline: InputPipeline<Lexicon, Rules>
     private var bufferedFocus: FocusIdentity?
 
-    public init(pipeline: InputPipeline<Lexicon>) {
+    public init(pipeline: InputPipeline<Lexicon, Rules>) {
         self.pipeline = pipeline
     }
+
+    public var latestDecisionPair: CorrectionPair? { pipeline.latestDecisionPair }
 
     public func needsFocusSnapshot(for event: InputEvent) -> Bool {
         switch event {
@@ -16,6 +18,8 @@ public struct FocusedInputProcessor<Lexicon: WordLexicon> {
             return true
         case .backspace, .reset, .synthetic:
             return false
+        case .commandZ:
+            return true
         }
     }
 
@@ -33,16 +37,26 @@ public struct FocusedInputProcessor<Lexicon: WordLexicon> {
             }
             return pipeline.handle(event, focusIsSafe: true)
 
-        case .boundary:
-            defer { bufferedFocus = nil }
+        case let .boundary(delimiter):
+            if bufferedFocus == nil, delimiter == ".", let focus {
+                bufferedFocus = focus.identity
+                let outcome = pipeline.handle(event, focusIsSafe: true)
+                if !pipeline.hasPendingText { bufferedFocus = nil }
+                return outcome
+            }
             guard let focus, focus.identity == bufferedFocus else {
                 reset()
                 return .passThrough
             }
-            return pipeline.handle(event, focusIsSafe: true)
+            let outcome = pipeline.handle(event, focusIsSafe: true)
+            if !pipeline.hasPendingText { bufferedFocus = nil }
+            return outcome
 
         case .reset:
             reset()
+            return .passThrough
+
+        case .commandZ:
             return .passThrough
 
         case .backspace, .synthetic:

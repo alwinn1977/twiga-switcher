@@ -1,0 +1,24 @@
+{
+  "indexes" : {
+    "en" : {
+      "entryCount" : 82,
+      "file" : "en.lsidx",
+      "maximumPhraseWords" : 3,
+      "sha256" : "bb89c7427321e54676f8206467c46c19e23093043b5530e8138b511054cd57fd"
+    },
+    "ru" : {
+      "entryCount" : 33,
+      "file" : "ru.lsidx",
+      "maximumPhraseWords" : 3,
+      "sha256" : "da8894923947b6451d6ade0acf5b7b3c29af10ada61152d7a3f41f7a4661ee50"
+    }
+  },
+  "minimumScore" : 0,
+  "schemaVersion" : 1,
+  "source" : {
+    "license" : "CC0-1.0",
+    "name" : "dev.layoutswitcher.dictionary.computer-terms",
+    "sha256" : "project-authored",
+    "version" : "1.0.0"
+  }
+}

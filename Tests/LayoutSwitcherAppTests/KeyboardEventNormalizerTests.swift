@@ -10,8 +10,11 @@ final class KeyboardEventNormalizerTests: XCTestCase {
         XCTAssertEqual(normalizer.normalize(.init(text: " ", keyCode: 49, flags: [], marker: 0)), .boundary(" "))
         XCTAssertEqual(normalizer.normalize(.init(text: "\n", keyCode: 36, flags: [], marker: 0)), .boundary("\n"))
         XCTAssertEqual(normalizer.normalize(.init(text: ".", keyCode: 47, flags: [], marker: 0)), .boundary("."))
+        XCTAssertEqual(normalizer.normalize(.init(text: "+", keyCode: 24, flags: [.maskShift], marker: 0)), .character("+"))
         XCTAssertEqual(normalizer.normalize(.init(text: "", keyCode: 51, flags: [], marker: 0)), .backspace)
         XCTAssertEqual(normalizer.normalize(.init(text: "g", keyCode: 5, flags: [.maskCommand], marker: 0)), .reset)
+        XCTAssertEqual(normalizer.normalize(.init(text: "z", keyCode: 6, flags: [.maskCommand], marker: 0)), .commandZ)
+        XCTAssertEqual(normalizer.normalize(.init(text: "z", keyCode: 6, flags: [.maskCommand, .maskShift], marker: 0)), .reset)
         XCTAssertEqual(normalizer.normalize(.init(text: "g", keyCode: 5, flags: [], marker: 0x4C535743)), .synthetic)
     }
 

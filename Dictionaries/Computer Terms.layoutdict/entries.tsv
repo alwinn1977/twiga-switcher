@@ -1,0 +1,116 @@
+# Project-authored computer terminology. language<TAB>score<TAB>term
+en	5200	API
+en	5200	backend
+en	5200	browser
+en	5200	cloud
+en	5200	code
+en	5200	computer
+en	5200	database
+en	5200	developer
+en	5200	frontend
+en	5200	hardware
+en	5200	internet
+en	5200	JavaScript
+en	5200	Linux
+en	5200	macOS
+en	5200	network
+en	5200	server
+en	5200	software
+en	5200	Windows
+en	4800	algorithm
+en	4800	application
+en	4800	architecture
+en	4800	authentication
+en	4800	compiler
+en	4800	container
+en	4800	deployment
+en	4800	Docker
+en	4800	framework
+en	4800	Git
+en	4800	GitHub
+en	4800	interface
+en	4800	Kubernetes
+en	4800	library
+en	4800	machine learning
+en	4800	microservice
+en	4800	Node.js
+en	4800	PostgreSQL
+en	4800	protocol
+en	4800	Python
+en	4800	repository
+en	4800	security
+en	4800	TypeScript
+en	4800	virtual machine
+en	4400	access token
+en	4400	artificial intelligence
+en	4400	CI/CD
+en	4400	command line
+en	4400	continuous integration
+en	4400	CPU
+en	4400	debugger
+en	4400	DevOps
+en	4400	DNS
+en	4400	GraphQL
+en	4400	GPU
+en	4400	HTTP
+en	4400	HTTPS
+en	4400	IDE
+en	4400	JSON
+en	4400	large language model
+en	4400	memory mapping
+en	4400	open source
+en	4400	RAM
+en	4400	REST API
+en	4400	SQL
+en	4400	SSH
+en	4400	SwiftUI
+en	4400	TCP/IP
+en	4400	unit test
+en	4400	URL
+en	4400	UTF-8
+en	4400	WebSocket
+en	4000	.NET
+en	4000	C++
+en	4000	C#
+en	4000	F#
+en	4000	IPv4
+en	4000	IPv6
+en	4000	OAuth
+en	4000	OpenAPI
+en	4000	Redis
+en	4000	SQLite
+en	4000	TLS
+en	4000	XML
+ru	5200	база данных
+ru	5200	браузер
+ru	5200	интернет
+ru	5200	код
+ru	5200	компьютер
+ru	5200	приложение
+ru	5200	программа
+ru	5200	разработчик
+ru	5200	сервер
+ru	4800	алгоритм
+ru	4800	архитектура
+ru	4800	безопасность
+ru	4800	библиотека
+ru	4800	виртуальная машина
+ru	4800	искусственный интеллект
+ru	4800	контейнер
+ru	4800	машинное обучение
+ru	4800	микросервис
+ru	4800	протокол
+ru	4800	репозиторий
+ru	4800	фреймворк
+ru	4400	веб-разработка
+ru	4400	исходный код
+ru	4400	командная строка
+ru	4400	непрерывная интеграция
+ru	4400	операционная система
+ru	4400	открытый исходный код
+ru	4400	система контроля версий
+ru	4400	сопоставление памяти
+ru	4400	тестирование
+ru	4400	токен доступа
+ru	4000	веб-сокет
+ru	4000	облачные вычисления

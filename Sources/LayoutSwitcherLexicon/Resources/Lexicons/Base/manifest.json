@@ -1,0 +1,24 @@
+{
+  "indexes" : {
+    "en" : {
+      "entryCount" : 53352,
+      "file" : "en.lsidx",
+      "maximumPhraseWords" : 1,
+      "sha256" : "dfd310a4b17e2d61edf3431374ad8ffa87c4a6ed4d95d17a6e6ec07dfcd73745"
+    },
+    "ru" : {
+      "entryCount" : 126894,
+      "file" : "ru.lsidx",
+      "maximumPhraseWords" : 1,
+      "sha256" : "53b900977d11820a206588c1c9036d9282ef71710037c1e371b531062175273c"
+    }
+  },
+  "minimumScore" : 2500,
+  "schemaVersion" : 1,
+  "source" : {
+    "license" : "CC-BY-SA-4.0",
+    "name" : "wordfreq",
+    "sha256" : "4b1c6ecffc6198be3396d5cf871c4423ca71c907c231348d352dd54d62b97473",
+    "version" : "3.1.1"
+  }
+}

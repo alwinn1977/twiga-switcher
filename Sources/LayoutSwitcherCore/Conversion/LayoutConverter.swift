@@ -1,3 +1,5 @@
+import Foundation
+
 public struct LayoutConverter: Sendable {
     private static let english = Array("`qwertyuiop[]asdfghjkl;'zxcvbnm,.")
     private static let russian = Array("ёйцукенгшщзхъфывапролджэячсмитьбю")
@@ -19,7 +21,7 @@ public struct LayoutConverter: Sendable {
             }
 
             let mapped: Character
-            let characterLayout: KeyboardLayout
+            let characterLayout: KeyboardLayout?
 
             if let value = Self.englishToRussian[lowered] {
                 mapped = value
@@ -27,11 +29,15 @@ public struct LayoutConverter: Sendable {
             } else if let value = Self.russianToEnglish[lowered] {
                 mapped = value
                 characterLayout = .russian
+            } else if Self.isNeutral(character) {
+                result.append(character)
+                continue
             } else {
                 return nil
             }
 
-            guard sourceLayout == nil || sourceLayout == characterLayout else {
+            guard let characterLayout,
+                  sourceLayout == nil || sourceLayout == characterLayout else {
                 return nil
             }
 
@@ -41,7 +47,16 @@ public struct LayoutConverter: Sendable {
             result += isUppercase ? String(mapped).uppercased() : String(mapped)
         }
 
+        guard let sourceLayout else { return nil }
         let targetLayout: KeyboardLayout = sourceLayout == .english ? .russian : .english
         return LayoutConversion(text: result, targetLayout: targetLayout)
+    }
+
+    private static func isNeutral(_ character: Character) -> Bool {
+        guard character.unicodeScalars.count == 1, let scalar = character.unicodeScalars.first else {
+            return false
+        }
+        return CharacterSet.decimalDigits.contains(scalar)
+            || CharacterSet(charactersIn: " +#-_/\\@").contains(scalar)
     }
 }

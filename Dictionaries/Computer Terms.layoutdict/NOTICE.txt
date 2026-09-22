@@ -1,0 +1,15 @@
+Computer Terms dictionary
+Copyright (c) 2026 LayoutSwitcher contributors
+
+The terminology and frequency scores in this package were authored for the
+LayoutSwitcher project and are dedicated to the public domain under CC0 1.0.
+No third-party word list was copied to create this package.
+
+Scoring rubric:
+  5200  ubiquitous platform or development term
+  4800  broadly used professional term
+  4400  common specialized term
+  4000  recognizable product, protocol, or punctuation-bearing term
+  3600  narrower specialist term
+
+License: https://creativecommons.org/publicdomain/zero/1.0/

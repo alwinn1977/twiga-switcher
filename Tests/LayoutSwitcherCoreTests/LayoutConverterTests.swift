@@ -29,9 +29,19 @@ final class LayoutConverterTests: XCTestCase {
         XCTAssertEqual(converter.convert(russian)?.text, english)
     }
 
-    func testRejectsMixedScriptsDigitsAndEmptyInput() {
+    func testPreservesNeutralCharactersAndConvertsLayoutDependentPunctuation() {
+        XCTAssertEqual(converter.convert("юТУЕ")?.text, ".NET")
+        XCTAssertEqual(converter.convert("тщвуюоы")?.text, "node.js")
+        XCTAssertEqual(converter.convert("С++")?.text, "C++")
+        XCTAssertEqual(converter.convert("м2/фзш")?.text, "v2/api")
+        XCTAssertEqual(converter.convert("ьфсршту дуфктштп")?.text, "machine learning")
+    }
+
+    func testRejectsMixedScriptsUnsupportedCharactersAndEmptyInput() {
         XCTAssertNil(converter.convert("ghбdtn"))
-        XCTAssertNil(converter.convert("hello2"))
+        XCTAssertNil(converter.convert("123+#"))
+        XCTAssertNil(converter.convert("hello🙂"))
+        XCTAssertNil(converter.convert("hello\n"))
         XCTAssertNil(converter.convert(""))
     }
 }
