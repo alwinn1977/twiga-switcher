@@ -20,5 +20,10 @@ if [[ -d "$resource_bundle" ]]; then
 fi
 
 plutil -lint "$app_path/Contents/Info.plist"
-codesign --force --deep --sign - "$app_path"
+codesign \
+  --force \
+  --deep \
+  --sign - \
+  --requirements '=designated => identifier "dev.layoutswitcher.prototype"' \
+  "$app_path"
 print -r -- "$app_path"
