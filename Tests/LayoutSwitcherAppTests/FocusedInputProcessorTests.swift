@@ -15,10 +15,10 @@ private struct ProcessorLexicon: WordLexicon {
 final class FocusedInputProcessorTests: XCTestCase {
     private let normalizer = KeyboardEventNormalizer(syntheticMarker: 0x4C535743)
 
-    private func makeProcessor() -> FocusedInputProcessor<ProcessorLexicon> {
+    private func makeProcessor() -> FocusedInputProcessor<ProcessorLexicon, NoUserCorrectionRules> {
         FocusedInputProcessor(pipeline: InputPipeline(
             converter: LayoutConverter(),
-            detector: LanguageDetector(lexicon: ProcessorLexicon(), allowlist: [])
+            detector: LanguageDetector(lexicon: ProcessorLexicon(), rules: NoUserCorrectionRules())
         ))
     }
 

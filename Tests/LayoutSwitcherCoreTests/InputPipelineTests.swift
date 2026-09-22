@@ -7,8 +7,14 @@ private struct PipelineLexicon: WordLexicon {
 }
 
 final class InputPipelineTests: XCTestCase {
-    private func makePipeline() -> InputPipeline<PipelineLexicon> {
-        InputPipeline(converter: LayoutConverter(), detector: LanguageDetector(lexicon: PipelineLexicon(english: ["hello"], russian: ["привет"]), allowlist: []))
+    private func makePipeline() -> InputPipeline<PipelineLexicon, NoUserCorrectionRules> {
+        InputPipeline(
+            converter: LayoutConverter(),
+            detector: LanguageDetector(
+                lexicon: PipelineLexicon(english: ["hello"], russian: ["привет"]),
+                rules: NoUserCorrectionRules()
+            )
+        )
     }
     func testSafeBoundaryBuildsReplacementPlan() {
         var pipeline = makePipeline(); "ghbdtn".forEach { _ = pipeline.handle(.character($0), focusIsSafe: true) }

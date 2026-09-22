@@ -1,10 +1,10 @@
 import LayoutSwitcherCore
 
-public struct FocusedInputProcessor<Lexicon: WordLexicon> {
-    private var pipeline: InputPipeline<Lexicon>
+public struct FocusedInputProcessor<Lexicon: FrequencyLexicon, Rules: UserCorrectionRuleLookingUp> {
+    private var pipeline: InputPipeline<Lexicon, Rules>
     private var bufferedFocus: FocusIdentity?
 
-    public init(pipeline: InputPipeline<Lexicon>) {
+    public init(pipeline: InputPipeline<Lexicon, Rules>) {
         self.pipeline = pipeline
     }
 

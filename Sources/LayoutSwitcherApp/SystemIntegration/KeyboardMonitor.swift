@@ -18,7 +18,7 @@ public protocol KeyboardMonitoring: AnyObject {
 }
 
 public final class KeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
-    private var processor: FocusedInputProcessor<SystemLexicon>
+    private var processor: FocusedInputProcessor<SystemLexicon, NoUserCorrectionRules>
     private let normalizer = KeyboardEventNormalizer(syntheticMarker: EventPoster.syntheticMarker)
     private let focusProvider: any FocusSnapshotProviding
     private let executor: ReplacementExecutor
@@ -42,7 +42,7 @@ public final class KeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
             converter: LayoutConverter(),
             detector: LanguageDetector(
                 lexicon: lexicon,
-                allowlist: ["docker", "swift", "xcode", "github", "json", "http", "ssh"]
+                rules: NoUserCorrectionRules()
             )
         ))
         self.focusProvider = focusProvider

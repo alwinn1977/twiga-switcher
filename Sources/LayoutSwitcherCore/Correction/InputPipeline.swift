@@ -1,9 +1,9 @@
-public struct InputPipeline<Lexicon: WordLexicon>: Sendable {
+public struct InputPipeline<Lexicon: FrequencyLexicon, Rules: UserCorrectionRuleLookingUp>: Sendable {
     private var buffer = WordBuffer()
     private let converter: LayoutConverter
-    private let detector: LanguageDetector<Lexicon>
+    private let detector: LanguageDetector<Lexicon, Rules>
 
-    public init(converter: LayoutConverter, detector: LanguageDetector<Lexicon>) {
+    public init(converter: LayoutConverter, detector: LanguageDetector<Lexicon, Rules>) {
         self.converter = converter; self.detector = detector
     }
 
