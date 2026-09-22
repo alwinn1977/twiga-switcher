@@ -6,6 +6,7 @@ project_dir=${script_dir:h}
 app_path="$project_dir/build/LayoutSwitcher.app"
 
 cd "$project_dir"
+swift build -c release
 bin_dir=$(swift build -c release --show-bin-path)
 
 rm -rf "$app_path"
