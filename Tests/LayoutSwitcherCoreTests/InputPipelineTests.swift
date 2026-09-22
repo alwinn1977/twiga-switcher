@@ -27,13 +27,19 @@ final class InputPipelineTests: XCTestCase {
                 lexicon: PipelineLexicon(entries: [
                     .english: [
                         "hello": .init(score: 5_000, subject: false),
+                        "linux": .init(score: 5_200, subject: true),
+                        "windows": .init(score: 5_100, subject: true),
+                        "windows server": .init(score: 4_900, subject: true),
                         ".net": .init(score: 3_500, subject: true),
                         "node": .init(score: 3_000, subject: true),
                         "node.js": .init(score: 4_200, subject: true),
                         "machine learning": .init(score: 4_100, subject: true),
                         "machine vision": .init(score: 4_000, subject: true),
                     ],
-                    .russian: ["привет": .init(score: 5_100, subject: false)],
+                    .russian: [
+                        "и": .init(score: 7_400, subject: false),
+                        "привет": .init(score: 5_100, subject: false),
+                    ],
                 ]),
                 rules: NoUserCorrectionRules()
             )
@@ -123,6 +129,60 @@ final class InputPipelineTests: XCTestCase {
             pipeline.handle(.boundary(" "), focusIsSafe: true),
             .replace(.init(deleteKeyCount: 6, replacement: "привет", delimiter: " ", targetLayout: .russian))
         )
+    }
+
+    func testRecognizedSourceWithMissingCandidateDoesNotOfferReverseManualRule() {
+        var pipeline = makePipeline()
+        feed("linux", to: &pipeline)
+
+        XCTAssertEqual(pipeline.handle(.boundary(" "), focusIsSafe: true), .passThrough)
+        XCTAssertNil(pipeline.latestDecisionPair)
+    }
+
+    func testUnknownPairRemainsAvailableForManualLearning() {
+        var pipeline = makePipeline()
+        feed("qzq", to: &pipeline)
+
+        XCTAssertEqual(pipeline.handle(.boundary(" "), focusIsSafe: true), .passThrough)
+        XCTAssertEqual(
+            pipeline.latestDecisionPair,
+            CorrectionPair(source: "qzq", candidate: "йяй")
+        )
+    }
+
+    func testExactReportedContextStillCorrectsRussianLinuxTyping() {
+        var pipeline = makePipeline()
+        feed("windows", to: &pipeline)
+        XCTAssertEqual(pipeline.handle(.boundary(" "), focusIsSafe: true), .passThrough)
+        XCTAssertNil(pipeline.latestDecisionPair)
+        feed("и", to: &pipeline)
+        XCTAssertEqual(pipeline.handle(.boundary(" "), focusIsSafe: true), .passThrough)
+        feed("дштгч", to: &pipeline)
+
+        XCTAssertEqual(
+            pipeline.handle(.boundary(" "), focusIsSafe: true),
+            .replace(.init(
+                deleteKeyCount: 5,
+                replacement: "linux",
+                delimiter: " ",
+                targetLayout: .english
+            ))
+        )
+        XCTAssertEqual(
+            pipeline.latestDecisionPair,
+            CorrectionPair(source: "дштгч", candidate: "linux")
+        )
+    }
+
+    func testResetClearsStaleManualCorrectionPair() {
+        var pipeline = makePipeline()
+        feed("qzq", to: &pipeline)
+        _ = pipeline.handle(.boundary(" "), focusIsSafe: true)
+        XCTAssertNotNil(pipeline.latestDecisionPair)
+
+        pipeline.reset()
+
+        XCTAssertNil(pipeline.latestDecisionPair)
     }
 
     private func feed(

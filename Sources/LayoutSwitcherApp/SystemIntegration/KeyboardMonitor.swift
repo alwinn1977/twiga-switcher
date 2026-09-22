@@ -104,7 +104,10 @@ public final class KeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
         source = nil; tap = nil; activationObserver = nil; isRunning = false; resetBuffer()
     }
 
-    public func resetBuffer() { processor.reset() }
+    public func resetBuffer() {
+        processor.reset()
+        onLatestDecision?(nil)
+    }
 
     fileprivate func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
@@ -123,6 +126,7 @@ public final class KeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
             if let modifierEvent = normalizer.normalizeModifierChange(flags: event.flags) {
                 correctionCoordinator.invalidate()
                 _ = processor.handle(modifierEvent, focus: nil)
+                onLatestDecision?(nil)
             }
             return Unmanaged.passUnretained(event)
         }
@@ -133,6 +137,9 @@ public final class KeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
         let raw = RawKeyEvent(text: text, keyCode: CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode)), flags: event.flags, marker: event.getIntegerValueField(.eventSourceUserData))
         let input = normalizer.normalize(raw)
         let focus = processor.needsFocusSnapshot(for: input) ? focusProvider.snapshot() : nil
+        if input != .synthetic {
+            onLatestDecision?(nil)
+        }
         if input == .commandZ {
             guard let focus,
                   let action = correctionCoordinator.handleCommandZ(currentFocus: focus.identity) else {
@@ -156,7 +163,6 @@ public final class KeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
         }
         if case .character = input {
             correctionCoordinator.invalidate()
-            onLatestDecision?(nil)
         }
         switch processor.handle(input, focus: focus) {
         case .passThrough:

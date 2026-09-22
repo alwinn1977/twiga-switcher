@@ -12,6 +12,7 @@ public struct InputPipeline<Lexicon: FrequencyLexicon, Rules: UserCorrectionRule
 
     public mutating func handle(_ event: InputEvent, focusIsSafe: Bool) -> PipelineOutcome {
         guard event != .synthetic else { return .passThrough }
+        latestDecisionPair = nil
         let result = buffer.handle(event)
         guard case let .candidates(candidates, delimiter) = result else {
             return .passThrough
@@ -23,9 +24,11 @@ public struct InputPipeline<Lexicon: FrequencyLexicon, Rules: UserCorrectionRule
 
         for candidate in candidates {
             guard let conversion = converter.convert(candidate.text) else { continue }
-            latestDecisionPair = CorrectionPair(source: candidate.text, candidate: conversion.text)
-            switch detector.decision(original: candidate.text, conversion: conversion) {
+            let pair = CorrectionPair(source: candidate.text, candidate: conversion.text)
+            let evaluation = detector.evaluate(original: candidate.text, conversion: conversion)
+            switch evaluation.decision {
             case let .correct(text, layout):
+                latestDecisionPair = pair
                 buffer.resolve(result, disposition: .corrected)
                 return .replace(.init(
                     deleteKeyCount: candidate.physicalKeyCount,
@@ -34,9 +37,15 @@ public struct InputPipeline<Lexicon: FrequencyLexicon, Rules: UserCorrectionRule
                     targetLayout: layout
                 ))
             case .deferred:
+                if evaluation.offersManualCorrection {
+                    latestDecisionPair = pair
+                }
                 buffer.resolve(result, disposition: .deferForPhrase(candidate))
                 return .passThrough
             case .unchanged:
+                if latestDecisionPair == nil, evaluation.offersManualCorrection {
+                    latestDecisionPair = pair
+                }
                 continue
             }
         }
@@ -44,5 +53,8 @@ public struct InputPipeline<Lexicon: FrequencyLexicon, Rules: UserCorrectionRule
         return .passThrough
     }
 
-    public mutating func reset() { _ = buffer.handle(.reset) }
+    public mutating func reset() {
+        _ = buffer.handle(.reset)
+        latestDecisionPair = nil
+    }
 }
