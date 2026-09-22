@@ -66,6 +66,27 @@ final class LexiconServiceTests: XCTestCase {
         XCTAssertTrue(service.diagnostics.contains { $0.packIdentifier == installed.identifier })
     }
 
+    func testComputerTermsDefaultsEnabledAndReloadHonorsDisabledSetting() throws {
+        let suite = "LexiconServiceTests-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let settings = ComputerTermsSettings(defaults: defaults)
+        let base = try makeBaseLexicons()
+        let service = LexiconService(
+            baseLoader: { base },
+            packsRootURL: temporaryRoot.appendingPathComponent("packs"),
+            computerTermsLoader: { try BundledLexiconResources.loadComputerTerms() },
+            computerTermsSettings: settings
+        )
+
+        try service.start()
+        XCTAssertTrue(service.catalog.lookup("kubernetes", language: .english).isSubjectTerm)
+
+        settings.isEnabled = false
+        try service.start()
+        XCTAssertEqual(service.catalog.lookup("kubernetes", language: .english), .missing)
+    }
+
     private func makeBaseLexicons() throws -> BundledBaseLexicons {
         let englishURL = temporaryRoot.appendingPathComponent("base-en.lsidx")
         let russianURL = temporaryRoot.appendingPathComponent("base-ru.lsidx")

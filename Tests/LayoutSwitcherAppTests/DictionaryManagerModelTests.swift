@@ -14,17 +14,25 @@ final class DictionaryManagerModelTests: XCTestCase {
     override func tearDownWithError() throws { try? FileManager.default.removeItem(at: root) }
 
     @MainActor
-    func testBaseAndBuiltInRowsCannotToggleOrRemove() async throws {
+    func testBaseCannotToggleAndComputerTermsDefaultsEnabledButCanToggle() async throws {
         let store = try DictionaryPackStore(rootURL: root.appendingPathComponent("installed"))
-        let model = DictionaryManagerModel(store: store)
+        let suite = "DictionaryManagerModelTests-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let model = DictionaryManagerModel(
+            store: store,
+            computerTermsSettings: ComputerTermsSettings(defaults: defaults)
+        )
         let base = try XCTUnwrap(model.rows.first { $0.isBase })
         let builtIn = try XCTUnwrap(model.rows.first { $0.id.contains("computer-terms") })
 
         await model.setEnabled(false, row: base)
         await model.remove(base)
+        await model.setEnabled(false, row: builtIn)
 
         XCTAssertTrue(model.rows.first { $0.id == base.id }?.isEnabled == true)
         XCTAssertTrue(builtIn.isEnabled)
+        XCTAssertFalse(model.rows.first { $0.id == builtIn.id }?.isEnabled == true)
         XCTAssertFalse(base.canRemove)
     }
 

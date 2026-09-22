@@ -25,12 +25,14 @@ public final class DictionaryManagerModel: ObservableObject {
 
     private let store: DictionaryPackStore
     private let importer: DictionaryPackImporter
+    private let computerTermsSettings: ComputerTermsSettings
     private let confirmRemoval: Confirmation
     private let reloadCatalog: CatalogReload
 
     public init(
         store: DictionaryPackStore? = nil,
         importer: DictionaryPackImporter = .init(),
+        computerTermsSettings: ComputerTermsSettings = .shared,
         confirmRemoval: @escaping Confirmation = { _ in true },
         reloadCatalog: @escaping CatalogReload = {}
     ) {
@@ -42,6 +44,7 @@ public final class DictionaryManagerModel: ObservableObject {
             preconditionFailure("Unable to open dictionary store")
         }
         self.importer = importer
+        self.computerTermsSettings = computerTermsSettings
         self.confirmRemoval = confirmRemoval
         self.reloadCatalog = reloadCatalog
         refresh()
@@ -78,9 +81,9 @@ public final class DictionaryManagerModel: ObservableObject {
                 detail: "Built-in subject dictionary",
                 isBase: false,
                 isBuiltIn: true,
-                isEnabled: true,
+                isEnabled: computerTermsSettings.isEnabled,
                 canRemove: false,
-                noticeURL: nil
+                noticeURL: BundledLexiconResources.computerTermsNoticeURL()
             ),
         ]
         if let packs = try? store.installedPacks() {
@@ -120,9 +123,13 @@ public final class DictionaryManagerModel: ObservableObject {
     }
 
     public func setEnabled(_ enabled: Bool, row: DictionaryManagerRow) async {
-        guard !row.isBase, !row.isBuiltIn else { return }
+        guard !row.isBase else { return }
         do {
-            try store.setEnabled(enabled, identifier: row.id)
+            if row.isBuiltIn {
+                computerTermsSettings.isEnabled = enabled
+            } else {
+                try store.setEnabled(enabled, identifier: row.id)
+            }
             await reloadCatalog()
             refresh()
         } catch {

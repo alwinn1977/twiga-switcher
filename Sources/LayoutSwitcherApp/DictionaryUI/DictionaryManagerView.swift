@@ -27,7 +27,7 @@ public struct DictionaryManagerView: View {
                         set: { value in Task { await model.setEnabled(value, row: row) } }
                     ))
                     .labelsHidden()
-                    .disabled(row.isBase || row.isBuiltIn)
+                    .disabled(row.isBase)
                     if row.canRemove {
                         Button("Remove") { pendingRemoval = row }
                     }

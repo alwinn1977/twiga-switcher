@@ -1,0 +1,11 @@
+{
+  "attribution" : {
+    "license" : "CC0-1.0",
+    "source" : "LayoutSwitcher project-authored terminology"
+  },
+  "description" : "Common software development, infrastructure, database, security, hardware, and AI terminology.",
+  "identifier" : "dev.layoutswitcher.dictionary.computer-terms",
+  "name" : "Computer Terms",
+  "schemaVersion" : 1,
+  "version" : "1.0.0"
+}

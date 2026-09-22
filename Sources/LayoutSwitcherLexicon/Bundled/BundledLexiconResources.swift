@@ -14,6 +14,23 @@ public struct BundledBaseLexicons: Sendable {
     }
 }
 
+public struct BundledComputerTermsLexicons: Sendable, FrequencyLexicon {
+    public let manifest: LexiconResourceManifest
+    public let english: MappedLexicon
+    public let russian: MappedLexicon
+
+    public var maximumPhraseWords: Int {
+        max(english.maximumPhraseWords, russian.maximumPhraseWords)
+    }
+
+    public func lookup(_ text: String, language: Language) -> LexiconMatch {
+        switch language {
+        case .english: english.lookup(text, language: language)
+        case .russian: russian.lookup(text, language: language)
+        }
+    }
+}
+
 public struct BundledLexiconNotices: Equatable, Sendable {
     public let wordfreq: String
     public let dataLicense: String
@@ -43,8 +60,24 @@ public enum BundledLexiconResources {
         try loadNotices(bundle: .module)
     }
 
+    public static func loadComputerTerms() throws -> BundledComputerTermsLexicons {
+        try loadComputerTerms(bundle: .module)
+    }
+
+    public static func computerTermsNoticeURL() -> URL? {
+        Bundle.module.url(
+            forResource: "computer-terms-NOTICE",
+            withExtension: "txt",
+            subdirectory: "Licenses"
+        )
+    }
+
     static func loadBase(bundle: Bundle) throws -> BundledBaseLexicons {
-        guard let manifestURL = bundle.url(forResource: "manifest", withExtension: "json") else {
+        guard let manifestURL = bundle.url(
+            forResource: "manifest",
+            withExtension: "json",
+            subdirectory: "Lexicons/Base"
+        ) else {
             throw BundledLexiconResourceError.missingResource("manifest.json")
         }
         let manifestData: Data
@@ -63,14 +96,79 @@ public enum BundledLexiconResources {
             throw BundledLexiconResourceError.invalidManifest
         }
 
-        let english = try loadIndex(languageCode: "en", language: .english, manifest: manifest, bundle: bundle)
-        let russian = try loadIndex(languageCode: "ru", language: .russian, manifest: manifest, bundle: bundle)
+        let english = try loadIndex(
+            languageCode: "en",
+            language: .english,
+            manifest: manifest,
+            bundle: bundle,
+            subdirectory: "Lexicons/Base"
+        )
+        let russian = try loadIndex(
+            languageCode: "ru",
+            language: .russian,
+            manifest: manifest,
+            bundle: bundle,
+            subdirectory: "Lexicons/Base"
+        )
         return BundledBaseLexicons(manifest: manifest, english: english, russian: russian)
     }
 
+    static func loadComputerTerms(bundle: Bundle) throws -> BundledComputerTermsLexicons {
+        let directory = "Lexicons/ComputerTerms"
+        guard let manifestURL = bundle.url(
+            forResource: "manifest",
+            withExtension: "json",
+            subdirectory: directory
+        ) else {
+            throw BundledLexiconResourceError.missingResource("ComputerTerms/manifest.json")
+        }
+        let manifestData: Data
+        do {
+            manifestData = try Data(contentsOf: manifestURL, options: .mappedIfSafe)
+        } catch {
+            throw BundledLexiconResourceError.unreadableResource("ComputerTerms/manifest.json")
+        }
+        guard let manifest = try? JSONDecoder().decode(LexiconResourceManifest.self, from: manifestData),
+              manifest.schemaVersion == 1,
+              manifest.minimumScore == 0,
+              manifest.source.name == "dev.layoutswitcher.dictionary.computer-terms",
+              manifest.source.version == "1.0.0",
+              manifest.source.sha256 == "project-authored",
+              manifest.source.license == "CC0-1.0" else {
+            throw BundledLexiconResourceError.invalidManifest
+        }
+        return try BundledComputerTermsLexicons(
+            manifest: manifest,
+            english: loadIndex(
+                languageCode: "en",
+                language: .english,
+                manifest: manifest,
+                bundle: bundle,
+                subdirectory: directory
+            ),
+            russian: loadIndex(
+                languageCode: "ru",
+                language: .russian,
+                manifest: manifest,
+                bundle: bundle,
+                subdirectory: directory
+            )
+        )
+    }
+
     static func loadNotices(bundle: Bundle) throws -> BundledLexiconNotices {
-        let wordfreq = try readTextResource("wordfreq-NOTICE", extension: "md", bundle: bundle)
-        let dataLicense = try readTextResource("CC-BY-SA-4.0", extension: "txt", bundle: bundle)
+        let wordfreq = try readTextResource(
+            "wordfreq-NOTICE",
+            extension: "md",
+            subdirectory: "Licenses",
+            bundle: bundle
+        )
+        let dataLicense = try readTextResource(
+            "CC-BY-SA-4.0",
+            extension: "txt",
+            subdirectory: "Licenses",
+            bundle: bundle
+        )
         return BundledLexiconNotices(wordfreq: wordfreq, dataLicense: dataLicense)
     }
 
@@ -78,7 +176,8 @@ public enum BundledLexiconResources {
         languageCode: String,
         language: Language,
         manifest: LexiconResourceManifest,
-        bundle: Bundle
+        bundle: Bundle,
+        subdirectory: String
     ) throws -> MappedLexicon {
         guard let metadata = manifest.indexes[languageCode],
               metadata.file == "\(languageCode).lsidx",
@@ -86,7 +185,11 @@ public enum BundledLexiconResources {
               metadata.maximumPhraseWords > 0 else {
             throw BundledLexiconResourceError.metadataMismatch(languageCode)
         }
-        guard let url = bundle.url(forResource: languageCode, withExtension: "lsidx") else {
+        guard let url = bundle.url(
+            forResource: languageCode,
+            withExtension: "lsidx",
+            subdirectory: subdirectory
+        ) else {
             throw BundledLexiconResourceError.missingResource(metadata.file)
         }
         guard try sha256(of: url) == metadata.sha256 else {
@@ -103,10 +206,15 @@ public enum BundledLexiconResources {
     private static func readTextResource(
         _ name: String,
         extension fileExtension: String,
+        subdirectory: String,
         bundle: Bundle
     ) throws -> String {
         let file = "\(name).\(fileExtension)"
-        guard let url = bundle.url(forResource: name, withExtension: fileExtension) else {
+        guard let url = bundle.url(
+            forResource: name,
+            withExtension: fileExtension,
+            subdirectory: subdirectory
+        ) else {
             throw BundledLexiconResourceError.missingResource(file)
         }
         do {

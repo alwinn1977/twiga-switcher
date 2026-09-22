@@ -27,6 +27,7 @@ public enum LexiconServiceError: Error, CustomStringConvertible, Sendable {
 
 public final class LexiconService: @unchecked Sendable {
     public typealias BaseLoader = @Sendable () throws -> BundledBaseLexicons
+    public typealias ComputerTermsLoader = @Sendable () throws -> any FrequencyLexicon
 
     public static var defaultPacksRootURL: URL {
         let applicationSupport = FileManager.default.urls(
@@ -41,6 +42,8 @@ public final class LexiconService: @unchecked Sendable {
     public let catalog: LexiconCatalog
 
     private let baseLoader: BaseLoader
+    private let computerTermsLoader: ComputerTermsLoader?
+    private let computerTermsSettings: ComputerTermsSettings?
     private let packsRootURL: URL
     private let lock = NSLock()
     private var publishedSnapshot: LexiconCatalogSnapshot?
@@ -50,16 +53,22 @@ public final class LexiconService: @unchecked Sendable {
     public convenience init() {
         self.init(
             baseLoader: { try BundledLexiconResources.loadBase() },
-            packsRootURL: Self.defaultPacksRootURL
+            packsRootURL: Self.defaultPacksRootURL,
+            computerTermsLoader: { try BundledLexiconResources.loadComputerTerms() },
+            computerTermsSettings: .shared
         )
     }
 
     public init(
         baseLoader: @escaping BaseLoader,
-        packsRootURL: URL
+        packsRootURL: URL,
+        computerTermsLoader: ComputerTermsLoader? = nil,
+        computerTermsSettings: ComputerTermsSettings? = nil
     ) {
         self.baseLoader = baseLoader
         self.packsRootURL = packsRootURL
+        self.computerTermsLoader = computerTermsLoader
+        self.computerTermsSettings = computerTermsSettings
         self.catalog = LexiconCatalog(initialSnapshot: .init(baseLexicons: [], subjectLexicons: []))
     }
 
@@ -116,6 +125,17 @@ public final class LexiconService: @unchecked Sendable {
 
         var subjectLexicons: [any FrequencyLexicon] = []
         var nonfatalDiagnostics: [LexiconServiceDiagnostic] = []
+        if computerTermsSettings?.isEnabled == true, let computerTermsLoader {
+            do {
+                subjectLexicons.append(try computerTermsLoader())
+            } catch {
+                nonfatalDiagnostics.append(.init(
+                    message: "Built-in Computer Terms dictionary is unavailable",
+                    packIdentifier: "dev.layoutswitcher.dictionary.computer-terms",
+                    isFatal: false
+                ))
+            }
+        }
         let installedPacks = (try? store.installedPacks()) ?? []
         let installedIdentifiers = Set(installedPacks.map(\.identifier))
         for identifier in store.enabledIdentifiersSnapshot().subtracting(installedIdentifiers) {
