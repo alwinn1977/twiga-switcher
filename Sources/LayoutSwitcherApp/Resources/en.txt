@@ -1,0 +1,10 @@
+# en.txt
+hello
+world
+swift
+xcode
+docker
+github
+json
+http
+ssh

@@ -9,7 +9,9 @@ let package = Package(
     ],
     targets: [
         .target(name: "LayoutSwitcherCore"),
+        .target(name: "LayoutSwitcherApp", dependencies: ["LayoutSwitcherCore"], resources: [.process("Resources")]),
         .testTarget(name: "LayoutSwitcherCoreTests", dependencies: ["LayoutSwitcherCore"]),
+        .testTarget(name: "LayoutSwitcherAppTests", dependencies: ["LayoutSwitcherApp", "LayoutSwitcherCore"]),
     ],
     swiftLanguageModes: [.v6]
 )
