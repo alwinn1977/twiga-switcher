@@ -5,6 +5,7 @@ final class MixedTypingIntegrationTests: XCTestCase {
     func testTwentyFourLinesWithoutManualLayoutSwitches() throws {
         let session = try TypingSessionDriver(initialLayout: .english)
         let trace = try session.type(MixedTypingCorpus.expected, mode: .automatic)
+        print("Automatic corpus processing: \(trace.processingDurationSeconds * 1_000) ms")
         XCTAssertEqual(trace.linePrefixes.count, 24)
         for (index, actual) in trace.linePrefixes.enumerated() {
             guard actual.utf8.elementsEqual(MixedTypingCorpus.expectedLinePrefixes[index].utf8) else {
@@ -36,6 +37,7 @@ final class MixedTypingIntegrationTests: XCTestCase {
     func testTwentyFourLinesWithManualLayoutSwitches() throws {
         let session = try TypingSessionDriver(initialLayout: .english)
         let trace = try session.type(MixedTypingCorpus.expected, mode: .manualAtScriptChanges)
+        print("Manual corpus processing: \(trace.processingDurationSeconds * 1_000) ms")
         XCTAssertEqual(trace.linePrefixes.count, 24)
         for (index, actual) in trace.linePrefixes.enumerated() {
             guard actual.utf8.elementsEqual(MixedTypingCorpus.expectedLinePrefixes[index].utf8) else {

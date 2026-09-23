@@ -26,6 +26,7 @@ struct CorrectionRecord {
 
 struct TypingTrace {
     let editorText: String
+    let processingDurationSeconds: TimeInterval
     let linePrefixes: [String]
     let layoutSelections: [KeyboardLayout]
     let manualSelections: [KeyboardLayout]
@@ -159,6 +160,7 @@ final class TypingSessionDriver {
         echoSyntheticEvents: Bool = false
     ) throws -> TypingTrace {
         let tokens = Self.tokenize(expected)
+        let processingStartedAt = ProcessInfo.processInfo.systemUptime
         var words: [TypedWord] = []
         var pending: (intended: String, raw: String, before: KeyboardLayout, automaticCount: Int)?
         var linePrefixes: [String] = []
@@ -248,6 +250,7 @@ final class TypingSessionDriver {
         }
         return .init(
             editorText: editor.text,
+            processingDurationSeconds: ProcessInfo.processInfo.systemUptime - processingStartedAt,
             linePrefixes: linePrefixes,
             layoutSelections: editor.manualSelections + editor.automaticSelections,
             manualSelections: editor.manualSelections,
