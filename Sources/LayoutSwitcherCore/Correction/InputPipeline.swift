@@ -31,34 +31,76 @@ public struct InputPipeline<Lexicon: FrequencyLexicon, Rules: UserCorrectionRule
             return .passThrough
         }
 
+        if [".", ",", ";"].contains(delimiter), let last = candidates.last {
+            recentWord = RecentWord(candidate: last, delimiter: delimiter)
+            buffer.resolve(result, disposition: .deferForPhrase(last))
+            return .passThrough
+        }
+
         for candidate in candidates {
-            guard let conversion = converter.convert(candidate.text) else { continue }
-            let pair = CorrectionPair(source: candidate.text, candidate: conversion.text)
-            let evaluation = detector.evaluate(original: candidate.text, conversion: conversion)
-            switch evaluation.decision {
-            case let .correct(text, layout):
-                latestDecisionPair = pair
+            let trailingPunctuation = String(candidate.text.reversed()
+                .prefix(while: { ".,;".contains($0) }).reversed())
+            let bareText = String(candidate.text.dropLast(trailingPunctuation.count))
+            let bareConversion = trailingPunctuation.isEmpty ? nil : converter.convert(bareText)
+            if let bareConversion,
+               detector.hasAlwaysRule(bareText, conversion: bareConversion),
+               case let .correct(text, layout) = detector.decision(
+                original: bareText, conversion: bareConversion
+               ) {
+                latestDecisionPair = .init(source: bareText, candidate: bareConversion.text)
                 buffer.resolve(result, disposition: .corrected)
                 return .replace(.init(
                     deleteKeyCount: candidate.physicalKeyCount,
                     replacement: text,
-                    delimiter: delimiter,
+                    delimiter: trailingPunctuation + delimiter,
                     targetLayout: layout
                 ))
-            case .deferred:
-                if evaluation.offersManualCorrection {
-                    latestDecisionPair = pair
-                }
-                if let last = candidates.last {
-                    recentWord = RecentWord(candidate: last, delimiter: delimiter)
-                }
-                buffer.resolve(result, disposition: .deferForPhrase(candidate))
+            }
+            if let bareConversion,
+               detector.hasRecognizedOriginal(bareText, conversion: bareConversion) {
+                buffer.resolve(result, disposition: .discard)
                 return .passThrough
-            case .unchanged:
-                if latestDecisionPair == nil, evaluation.offersManualCorrection {
+            }
+            if let conversion = converter.convert(candidate.text) {
+                let pair = CorrectionPair(source: candidate.text, candidate: conversion.text)
+                let evaluation = detector.evaluate(original: candidate.text, conversion: conversion)
+                switch evaluation.decision {
+                case let .correct(text, layout):
                     latestDecisionPair = pair
+                    buffer.resolve(result, disposition: .corrected)
+                    return .replace(.init(
+                        deleteKeyCount: candidate.physicalKeyCount,
+                        replacement: text,
+                        delimiter: delimiter,
+                        targetLayout: layout
+                    ))
+                case .deferred:
+                    if evaluation.offersManualCorrection {
+                        latestDecisionPair = pair
+                    }
+                    if let last = candidates.last {
+                        recentWord = RecentWord(candidate: last, delimiter: delimiter)
+                    }
+                    buffer.resolve(result, disposition: .deferForPhrase(candidate))
+                    return .passThrough
+                case .unchanged:
+                    if latestDecisionPair == nil, evaluation.offersManualCorrection {
+                        latestDecisionPair = pair
+                    }
                 }
-                continue
+            }
+            if let bareConversion,
+               case let .correct(text, layout) = detector.decision(
+                original: bareText, conversion: bareConversion
+               ) {
+                latestDecisionPair = .init(source: bareText, candidate: bareConversion.text)
+                buffer.resolve(result, disposition: .corrected)
+                return .replace(.init(
+                    deleteKeyCount: candidate.physicalKeyCount,
+                    replacement: text,
+                    delimiter: trailingPunctuation + delimiter,
+                    targetLayout: layout
+                ))
             }
         }
         if let last = candidates.last {

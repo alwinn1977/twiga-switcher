@@ -19,9 +19,31 @@ private struct PipelineLexicon: FrequencyLexicon {
     }
 }
 
+private struct ForcedHelloRule: UserCorrectionRuleLookingUp {
+    func disposition(source: String, candidate: String) -> UserCorrectionDisposition? {
+        source == "hello" && candidate == "руддщ" ? .always : nil
+    }
+}
+
 final class InputPipelineTests: XCTestCase {
-    private func makePipeline() -> InputPipeline<PipelineLexicon, NoUserCorrectionRules> {
-        InputPipeline(
+    private func makePipeline(includeRussianDecoy: Bool = false) -> InputPipeline<PipelineLexicon, NoUserCorrectionRules> {
+        var russianEntries: [String: PipelineLexicon.Entry] = [
+            "и": .init(score: 7_400, subject: false),
+            "привет": .init(score: 5_100, subject: false),
+            "компьютер": .init(score: 5_000, subject: false),
+            "бюджет": .init(score: 5_000, subject: false),
+            "любой": .init(score: 5_000, subject: false),
+            "мен": .init(score: 4_000, subject: false),
+            "меню": .init(score: 5_000, subject: false),
+            "сохраняет": .init(score: 5_000, subject: false),
+            "хорошо": .init(score: 5_000, subject: false),
+            "ёлка": .init(score: 5_000, subject: false),
+            "объект": .init(score: 5_000, subject: false),
+        ]
+        if includeRussianDecoy {
+            russianEntries["руддщю"] = .init(score: 5_000, subject: false)
+        }
+        return InputPipeline(
             converter: LayoutConverter(),
             detector: LanguageDetector(
                 lexicon: PipelineLexicon(entries: [
@@ -37,13 +59,7 @@ final class InputPipelineTests: XCTestCase {
                         "machine vision": .init(score: 4_000, subject: true),
                         "c++": .init(score: 4_000, subject: true),
                     ],
-                    .russian: [
-                        "и": .init(score: 7_400, subject: false),
-                        "привет": .init(score: 5_100, subject: false),
-                        "компьютер": .init(score: 5_000, subject: false),
-                        "бюджет": .init(score: 5_000, subject: false),
-                        "любой": .init(score: 5_000, subject: false),
-                    ],
+                    .russian: russianEntries,
                 ]),
                 rules: NoUserCorrectionRules()
             )
@@ -121,6 +137,88 @@ final class InputPipelineTests: XCTestCase {
                 raw
             )
         }
+    }
+
+    func testFinalPhysicalDotCanBeRussianLetterRatherThanSentencePeriod() {
+        var pipeline = makePipeline()
+        feed("vty", to: &pipeline)
+        XCTAssertEqual(pipeline.handle(.boundary("."), focusIsSafe: true), .passThrough)
+        XCTAssertEqual(
+            pipeline.handle(.boundary(" "), focusIsSafe: true),
+            .replace(.init(deleteKeyCount: 4, replacement: "меню", delimiter: " ", targetLayout: .russian))
+        )
+    }
+
+    func testSentenceCommaAfterWrongLayoutWordRemainsPunctuation() {
+        var pipeline = makePipeline()
+        feed("ghbdtn", to: &pipeline)
+        XCTAssertEqual(pipeline.handle(.boundary(","), focusIsSafe: true), .passThrough)
+        XCTAssertEqual(
+            pipeline.handle(.boundary(" "), focusIsSafe: true),
+            .replace(.init(deleteKeyCount: 7, replacement: "привет", delimiter: ", ", targetLayout: .russian))
+        )
+    }
+
+    func testRussianRawWordBeforeLiteralCommaConvertsWithoutTreatingCommaAsLetter() {
+        var pipeline = makePipeline()
+        feed("Дштгч", to: &pipeline)
+        XCTAssertEqual(pipeline.handle(.boundary(","), focusIsSafe: true), .passThrough)
+        XCTAssertEqual(
+            pipeline.handle(.boundary(" "), focusIsSafe: true),
+            .replace(.init(deleteKeyCount: 6, replacement: "Linux", delimiter: ", ", targetLayout: .english))
+        )
+    }
+
+    func testWrongLayoutBracketBacktickAndClosingBracketStayInsideWords() {
+        let cases: [(String, String)] = [
+            ("cj[hfyztn", "сохраняет"),
+            ("[jhjij", "хорошо"),
+            ("`krf", "ёлка"),
+            ("j,]trn", "объект")
+        ]
+        for (raw, expected) in cases {
+            var pipeline = makePipeline()
+            for character in raw {
+                let input: InputEvent = character == ","
+                    ? .boundary(",") : .character(character)
+                _ = pipeline.handle(input, focusIsSafe: true)
+            }
+            XCTAssertEqual(
+                pipeline.handle(.boundary(" "), focusIsSafe: true),
+                .replace(.init(
+                    deleteKeyCount: raw.count,
+                    replacement: expected,
+                    delimiter: " ",
+                    targetLayout: .russian
+                )),
+                raw
+            )
+        }
+    }
+
+    func testKnownEnglishWordWithSentencePeriodBeatsPlausibleRussianConversion() {
+        var pipeline = makePipeline(includeRussianDecoy: true)
+        feed("hello", to: &pipeline)
+        XCTAssertEqual(pipeline.handle(.boundary("."), focusIsSafe: true), .passThrough)
+        XCTAssertEqual(pipeline.handle(.boundary(" "), focusIsSafe: true), .passThrough)
+    }
+
+    func testExplicitAlwaysRuleStillAppliesBeforeSentencePeriod() {
+        var pipeline = InputPipeline(
+            converter: LayoutConverter(),
+            detector: LanguageDetector(
+                lexicon: PipelineLexicon(entries: [
+                    .english: ["hello": .init(score: 5_000, subject: false)]
+                ]),
+                rules: ForcedHelloRule()
+            )
+        )
+        "hello".forEach { _ = pipeline.handle(.character($0), focusIsSafe: true) }
+        XCTAssertEqual(pipeline.handle(.boundary("."), focusIsSafe: true), .passThrough)
+        XCTAssertEqual(
+            pipeline.handle(.boundary(" "), focusIsSafe: true),
+            .replace(.init(deleteKeyCount: 6, replacement: "руддщ", delimiter: ". ", targetLayout: .russian))
+        )
     }
 
     func testCorrectPunctuationTermsAndSentenceMarksStayLiteral() {

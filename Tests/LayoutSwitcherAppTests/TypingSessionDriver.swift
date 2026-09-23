@@ -100,6 +100,14 @@ private enum TypingToken {
     case separator(String)
 }
 
+private struct PhysicalKeyRecord {
+    let expectedByteOffset: Int
+    let expectedByteCount: Int
+    let keyCode: CGKeyCode
+    let activeLayout: KeyboardLayout
+    let raw: String
+}
+
 enum TypingSessionError: Error {
     case unsupportedCharacter(Character)
     case eventCreationFailed
@@ -157,9 +165,7 @@ final class TypingSessionDriver {
         var expectedPrefix = ""
         var firstDivergence = "none"
         var line = 1
-        var lastKeyCode: CGKeyCode = 0
-        var lastRaw = ""
-        var lastLayout = editor.layout
+        var keyRecords: [PhysicalKeyRecord] = []
 
         for token in tokens {
             switch token {
@@ -170,14 +176,21 @@ final class TypingSessionDriver {
                 let before = editor.layout
                 let selectionCount = editor.automaticSelections.count
                 var raw = ""
+                var expectedByteOffset = expectedPrefix.utf8.count
                 for character in word {
                     let stroke = try Self.stroke(for: character, language: language)
                     let rendered = PhysicalTypingKeys.render(stroke, in: editor.layout)
+                    let intendedByteCount = String(character).utf8.count
+                    keyRecords.append(.init(
+                        expectedByteOffset: expectedByteOffset,
+                        expectedByteCount: intendedByteCount,
+                        keyCode: stroke.keyCode,
+                        activeLayout: editor.layout,
+                        raw: rendered
+                    ))
                     try send(stroke, rendered: rendered, echoSyntheticEvents: echoSyntheticEvents)
                     raw += rendered
-                    lastKeyCode = stroke.keyCode
-                    lastRaw = rendered
-                    lastLayout = before
+                    expectedByteOffset += intendedByteCount
                 }
                 pending = (word, raw, before, selectionCount)
                 expectedPrefix += word
@@ -187,15 +200,27 @@ final class TypingSessionDriver {
                     let layout = editor.layout
                     let stroke = try Self.stroke(for: character, language: layout)
                     let rendered = PhysicalTypingKeys.render(stroke, in: layout)
+                    keyRecords.append(.init(
+                        expectedByteOffset: expectedPrefix.utf8.count,
+                        expectedByteCount: String(character).utf8.count,
+                        keyCode: stroke.keyCode,
+                        activeLayout: layout,
+                        raw: rendered
+                    ))
                     try send(stroke, rendered: rendered, echoSyntheticEvents: echoSyntheticEvents)
-                    lastKeyCode = stroke.keyCode
-                    lastRaw = rendered
-                    lastLayout = layout
                     expectedPrefix.append(character)
                     if character == "\n" {
                         linePrefixes.append(editor.text)
                         if editor.text != expectedPrefix && firstDivergence == "none" {
-                            firstDivergence = "line \(line), keycode \(lastKeyCode), layout \(lastLayout), raw \(lastRaw.debugDescription), expected \(expectedPrefix.debugDescription), actual \(editor.text.debugDescription)"
+                            let expectedLine = String(expectedPrefix.split(separator: "\n").last ?? "")
+                            let actualLine = String(editor.text.split(separator: "\n").last ?? "")
+                            let matchingBytes = zip(expectedPrefix.utf8, editor.text.utf8)
+                                .prefix(while: { $0.0 == $0.1 }).count
+                            let culprit = keyRecords.first {
+                                matchingBytes >= $0.expectedByteOffset
+                                    && matchingBytes < $0.expectedByteOffset + $0.expectedByteCount
+                            } ?? keyRecords.last
+                            firstDivergence = "line \(line), byte \(matchingBytes), keycode \(culprit?.keyCode ?? 0), layout \(String(describing: culprit?.activeLayout)), raw \((culprit?.raw ?? "").debugDescription), expected \(expectedLine.debugDescription), actual \(actualLine.debugDescription)"
                         }
                         line += 1
                     }

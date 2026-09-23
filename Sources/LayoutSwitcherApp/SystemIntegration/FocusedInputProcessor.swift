@@ -38,7 +38,7 @@ public struct FocusedInputProcessor<Lexicon: FrequencyLexicon, Rules: UserCorrec
             return pipeline.handle(event, focusIsSafe: true)
 
         case let .boundary(delimiter):
-            if bufferedFocus == nil, delimiter == ".", let focus {
+            if bufferedFocus == nil, [".", ","].contains(delimiter), let focus {
                 bufferedFocus = focus.identity
                 let outcome = pipeline.handle(event, focusIsSafe: true)
                 recentWordFocus = pipeline.hasRecentWord ? focus.identity : nil

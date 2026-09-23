@@ -8,7 +8,7 @@ private struct ProcessorLexicon: FrequencyLexicon {
         let key = TermNormalizer.normalize(text)
         let entries: [String: Int] = language == .english
             ? ["hello": 5_000, ".net": 4_200, "machine learning": 4_100]
-            : ["привет": 5_100]
+            : ["привет": 5_100, "бюджет": 5_000]
         return LexiconMatch(
             score: entries[key],
             isSubjectTerm: key == "machine learning",
@@ -127,6 +127,21 @@ final class FocusedInputProcessorTests: XCTestCase {
         XCTAssertEqual(processor.handle(.boundary("."), focus: focus), .passThrough)
         "NET".forEach { _ = processor.handle(.character($0), focus: nil) }
         XCTAssertEqual(processor.handle(.boundary(" "), focus: focus), .passThrough)
+    }
+
+    func testLeadingCommaAndDotKeepFocusForWrongLayoutBudget() {
+        var processor = makeProcessor()
+        let focus = FocusSnapshot(identity: .init(processID: 10, elementHash: 20))
+
+        XCTAssertEqual(processor.handle(.boundary(","), focus: focus), .passThrough)
+        XCTAssertEqual(processor.handle(.boundary("."), focus: focus), .passThrough)
+        _ = processor.handle(.character("l"), focus: nil)
+        XCTAssertEqual(processor.handle(.boundary(";"), focus: focus), .passThrough)
+        "tn".forEach { _ = processor.handle(.character($0), focus: nil) }
+        XCTAssertEqual(
+            processor.handle(.boundary(" "), focus: focus),
+            .replace(.init(deleteKeyCount: 6, replacement: "бюджет", delimiter: " ", targetLayout: .russian))
+        )
     }
 
     func testForceCorrectionRequiresSameEditableField() {

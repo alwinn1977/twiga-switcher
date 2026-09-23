@@ -29,4 +29,20 @@ final class TypingSessionDriverTests: XCTestCase {
         XCTAssertEqual(trace.automaticSelections.count, 0)
         XCTAssertEqual(trace.corrections.count, 0)
     }
+
+    func testBudgetCorrectsAfterEnglishTermAndLiteralComma() throws {
+        let session = try TypingSessionDriver(initialLayout: .english)
+        let trace = try session.type("PostgreSQL, бюджет ", mode: .automatic)
+        XCTAssertEqual(trace.editorText, "PostgreSQL, бюджет ", trace.firstDivergence)
+        XCTAssertEqual(trace.words.last?.raw, ",.l;tn")
+        XCTAssertEqual(trace.words.last?.layoutAfter, .russian)
+    }
+
+    func testDivergenceNamesFirstWrongPhysicalKeyNotLineReturn() throws {
+        let session = try TypingSessionDriver(initialLayout: .english)
+        let trace = try session.type("йяй \n", mode: .automatic)
+        XCTAssertNotEqual(trace.editorText, "йяй \n")
+        XCTAssertTrue(trace.firstDivergence.contains("keycode 12"), trace.firstDivergence)
+        XCTAssertTrue(trace.firstDivergence.contains("raw \"q\""), trace.firstDivergence)
+    }
 }

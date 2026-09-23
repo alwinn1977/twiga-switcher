@@ -1,16 +1,16 @@
 {
   "indexes" : {
     "en" : {
-      "entryCount" : 82,
+      "entryCount" : 105,
       "file" : "en.lsidx",
       "maximumPhraseWords" : 3,
-      "sha256" : "bb89c7427321e54676f8206467c46c19e23093043b5530e8138b511054cd57fd"
+      "sha256" : "d13f145f651e00aac0346444a4eddfa941bdc91f797aa020dbfc28f75855b722"
     },
     "ru" : {
-      "entryCount" : 33,
+      "entryCount" : 34,
       "file" : "ru.lsidx",
       "maximumPhraseWords" : 3,
-      "sha256" : "da8894923947b6451d6ade0acf5b7b3c29af10ada61152d7a3f41f7a4661ee50"
+      "sha256" : "c3ddcc2ee237298a450155a7b145b5fde8afe6cb5e53c042818f67607f63f294"
     }
   },
   "minimumScore" : 0,

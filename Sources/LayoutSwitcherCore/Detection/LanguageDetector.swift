@@ -26,6 +26,18 @@ public struct LanguageDetector<Lexicon: FrequencyLexicon, Rules: UserCorrectionR
         evaluate(original: original, conversion: conversion).decision
     }
 
+    func hasRecognizedOriginal(_ original: String, conversion: LayoutConversion) -> Bool {
+        let language: Language = conversion.targetLayout == .russian ? .english : .russian
+        return lexicon.lookup(TermNormalizer.normalize(original), language: language).score != nil
+    }
+
+    func hasAlwaysRule(_ original: String, conversion: LayoutConversion) -> Bool {
+        rules.disposition(
+            source: TermNormalizer.normalize(original),
+            candidate: TermNormalizer.normalize(conversion.text)
+        ) == .always
+    }
+
     func evaluate(original: String, conversion: LayoutConversion) -> CorrectionEvaluation {
         let original = TermNormalizer.normalize(original)
         let candidate = TermNormalizer.normalize(conversion.text)

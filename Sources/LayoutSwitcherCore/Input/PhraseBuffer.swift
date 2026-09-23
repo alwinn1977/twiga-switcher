@@ -176,7 +176,7 @@ public struct PhraseBuffer: Sendable {
         case 0x410...0x44F, 0x401, 0x451:
             return .letter(.cyrillic)
         default:
-            let neutral = CharacterSet.decimalDigits.union(CharacterSet(charactersIn: "+#-_/\\@'\""))
+            let neutral = CharacterSet.decimalDigits.union(CharacterSet(charactersIn: "+#-_/\\@'\"`[]"))
             return neutral.contains(scalar) ? .neutral : nil
         }
     }

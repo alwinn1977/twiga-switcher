@@ -14,4 +14,145 @@ final class ComputerTermsResourceTests: XCTestCase {
         }
         XCTAssertGreaterThanOrEqual(pack.maximumPhraseWords, 2)
     }
+
+    func testBundledFrequencyDecisionCorrectsComputerFromPhysicalKeys() throws {
+        let base = try BundledLexiconResources.loadBase()
+        let terms = try BundledLexiconResources.loadComputerTerms()
+        let lexicon = LexiconCatalogSnapshot(
+            baseLexicons: [base.english, base.russian],
+            subjectLexicons: [terms]
+        )
+        let conversion = try XCTUnwrap(LayoutConverter().convert("rjvgm.nth"))
+        XCTAssertEqual(conversion.text, "компьютер")
+        XCTAssertEqual(
+            LanguageDetector(lexicon: lexicon, rules: NoUserCorrectionRules())
+                .decision(original: "rjvgm.nth", conversion: conversion),
+            .correct(text: "компьютер", targetLayout: .russian),
+            "base=\(String(describing: base.russian.lookup("компьютер", language: .russian).score)), subject=\(String(describing: terms.lookup("компьютер", language: .russian).score))"
+        )
+    }
+
+    func testBundledPipelineRetainsComputerThroughWrongLayoutPeriod() throws {
+        let base = try BundledLexiconResources.loadBase()
+        let terms = try BundledLexiconResources.loadComputerTerms()
+        let lexicon = LexiconCatalogSnapshot(
+            baseLexicons: [base.english, base.russian],
+            subjectLexicons: [terms]
+        )
+        var pipeline = InputPipeline(
+            converter: LayoutConverter(),
+            detector: LanguageDetector(lexicon: lexicon, rules: NoUserCorrectionRules())
+        )
+        for key in "rjvgm.nth" {
+            let input: InputEvent = key == "." ? .boundary(".") : .character(key)
+            _ = pipeline.handle(input, focusIsSafe: true)
+        }
+        XCTAssertEqual(
+            pipeline.handle(.boundary(" "), focusIsSafe: true),
+            .replace(.init(deleteKeyCount: 9, replacement: "компьютер", delimiter: " ", targetLayout: .russian)),
+            "prefix match=\(lexicon.lookup("компь", language: .russian).isStrictPrefix)"
+        )
+    }
+
+    func testBundledFrequencyDecisionCorrectsCommonInflectedVerb() throws {
+        let base = try BundledLexiconResources.loadBase()
+        let terms = try BundledLexiconResources.loadComputerTerms()
+        let lexicon = LexiconCatalogSnapshot(
+            baseLexicons: [base.english, base.russian],
+            subjectLexicons: [terms]
+        )
+        let conversion = try XCTUnwrap(LayoutConverter().convert("cj[hfyztn"))
+        XCTAssertEqual(conversion.text, "сохраняет")
+        XCTAssertEqual(
+            LanguageDetector(lexicon: lexicon, rules: NoUserCorrectionRules())
+                .decision(original: "cj[hfyztn", conversion: conversion),
+            .correct(text: "сохраняет", targetLayout: .russian),
+            "base=\(String(describing: base.russian.lookup("сохраняет", language: .russian).score)), subject=\(String(describing: terms.lookup("сохраняет", language: .russian).score))"
+        )
+    }
+
+    func testBundledFrequencyDecisionCorrectsBudgetWithLeadingPunctuationKeys() throws {
+        let base = try BundledLexiconResources.loadBase()
+        let terms = try BundledLexiconResources.loadComputerTerms()
+        let lexicon = LexiconCatalogSnapshot(
+            baseLexicons: [base.english, base.russian],
+            subjectLexicons: [terms]
+        )
+        let conversion = try XCTUnwrap(LayoutConverter().convert(",.l;tn"))
+        XCTAssertEqual(conversion.text, "бюджет")
+        XCTAssertEqual(
+            LanguageDetector(lexicon: lexicon, rules: NoUserCorrectionRules())
+                .decision(original: ",.l;tn", conversion: conversion),
+            .correct(text: "бюджет", targetLayout: .russian),
+            "base=\(String(describing: base.russian.lookup("бюджет", language: .russian).score)), subject=\(String(describing: terms.lookup("бюджет", language: .russian).score))"
+        )
+    }
+
+    func testBundledPipelineRetainsBudgetAcrossLeadingCommaDotAndSemicolon() throws {
+        let base = try BundledLexiconResources.loadBase()
+        let terms = try BundledLexiconResources.loadComputerTerms()
+        let lexicon = LexiconCatalogSnapshot(
+            baseLexicons: [base.english, base.russian],
+            subjectLexicons: [terms]
+        )
+        var pipeline = InputPipeline(
+            converter: LayoutConverter(),
+            detector: LanguageDetector(lexicon: lexicon, rules: NoUserCorrectionRules())
+        )
+        for key in ",.l;tn" {
+            let input: InputEvent = ",.;".contains(key) ? .boundary(String(key)) : .character(key)
+            _ = pipeline.handle(input, focusIsSafe: true)
+        }
+        XCTAssertEqual(
+            pipeline.handle(.boundary(" "), focusIsSafe: true),
+            .replace(.init(deleteKeyCount: 6, replacement: "бюджет", delimiter: " ", targetLayout: .russian))
+        )
+    }
+
+    func testBundledComputerTermsRecognizesMutexAndCorrectsPhysicalKeys() throws {
+        let base = try BundledLexiconResources.loadBase()
+        let terms = try BundledLexiconResources.loadComputerTerms()
+        let lexicon = LexiconCatalogSnapshot(
+            baseLexicons: [base.english, base.russian],
+            subjectLexicons: [terms]
+        )
+        XCTAssertTrue(terms.lookup("мьютекс", language: .russian).isSubjectTerm)
+        let conversion = try XCTUnwrap(LayoutConverter().convert("vm.ntrc"))
+        XCTAssertEqual(conversion.text, "мьютекс")
+        XCTAssertEqual(
+            LanguageDetector(lexicon: lexicon, rules: NoUserCorrectionRules())
+                .decision(original: "vm.ntrc", conversion: conversion),
+            .correct(text: "мьютекс", targetLayout: .russian),
+            "base=\(String(describing: base.russian.lookup("мьютекс", language: .russian).score)), subject=\(String(describing: terms.lookup("мьютекс", language: .russian).score))"
+        )
+    }
+
+    func testBundledComputerTermsRecognizesStandaloneCI() throws {
+        let base = try BundledLexiconResources.loadBase()
+        let terms = try BundledLexiconResources.loadComputerTerms()
+        let lexicon = LexiconCatalogSnapshot(
+            baseLexicons: [base.english, base.russian],
+            subjectLexicons: [terms]
+        )
+        XCTAssertTrue(terms.lookup("CI", language: .english).isSubjectTerm)
+        let conversion = try XCTUnwrap(LayoutConverter().convert("СШ"))
+        XCTAssertEqual(conversion.text, "CI")
+        XCTAssertEqual(
+            LanguageDetector(lexicon: lexicon, rules: NoUserCorrectionRules())
+                .decision(original: "СШ", conversion: conversion),
+            .correct(text: "CI", targetLayout: .english)
+        )
+    }
+
+    func testBundledComputerTermsCoverCorpusSoftwareVocabulary() throws {
+        let terms = try BundledLexiconResources.loadComputerTerms()
+        for term in [
+            "README", "setup", "build", "dashboard", "timeout", "request",
+            "update", "config", "cache", "lookup", "terminal", "error",
+            "report", "commit", "diff", "tests", "editor", "logs",
+            "layout", "pod", "TextEdit", "localhost"
+        ] {
+            XCTAssertTrue(terms.lookup(term, language: .english).isSubjectTerm, term)
+        }
+    }
 }

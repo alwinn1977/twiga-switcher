@@ -43,6 +43,7 @@ en	4800	TypeScript
 en	4800	virtual machine
 en	4400	access token
 en	4400	artificial intelligence
+en	4400	CI
 en	4400	CI/CD
 en	4400	command line
 en	4400	continuous integration
@@ -57,14 +58,18 @@ en	4400	HTTPS
 en	4400	IDE
 en	4400	JSON
 en	4400	large language model
+en	4400	localhost
 en	4400	memory mapping
 en	4400	open source
+en	4400	pod
 en	4400	RAM
+en	4400	README
 en	4400	REST API
 en	4400	SQL
 en	4400	SSH
 en	4400	SwiftUI
 en	4400	TCP/IP
+en	4400	TextEdit
 en	4400	unit test
 en	4400	URL
 en	4400	UTF-8
@@ -81,6 +86,24 @@ en	4000	Redis
 en	4000	SQLite
 en	4000	TLS
 en	4000	XML
+en	4000	build
+en	4000	cache
+en	4000	commit
+en	4000	config
+en	4000	dashboard
+en	4000	diff
+en	4000	editor
+en	4000	error
+en	4000	layout
+en	4000	logs
+en	4000	lookup
+en	4000	report
+en	4000	request
+en	4000	setup
+en	4000	terminal
+en	4000	tests
+en	4000	timeout
+en	4000	update
 ru	5200	база данных
 ru	5200	браузер
 ru	5200	интернет
@@ -105,6 +128,7 @@ ru	4800	фреймворк
 ru	4400	веб-разработка
 ru	4400	исходный код
 ru	4400	командная строка
+ru	4400	мьютекс
 ru	4400	непрерывная интеграция
 ru	4400	операционная система
 ru	4400	открытый исходный код
