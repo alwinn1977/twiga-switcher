@@ -16,45 +16,58 @@ private struct ShortcutKeyChoice: Identifiable {
     ].map { Self(id: $0.0, label: $0.1) }
 }
 
-private struct ShortcutModifiersChoice: Identifiable {
+private struct ShortcutModifiersChoice: Identifiable, Sendable {
     let id: UInt64
-    let label: String
+    let label: InterfaceText
 
     static let all: [Self] = [
-        Self(id: CGEventFlags.maskControl.rawValue | CGEventFlags.maskAlternate.rawValue, label: "Control + Option"),
-        Self(id: CGEventFlags.maskControl.rawValue | CGEventFlags.maskShift.rawValue, label: "Control + Shift"),
-        Self(id: CGEventFlags.maskCommand.rawValue | CGEventFlags.maskAlternate.rawValue, label: "Command + Option"),
-        Self(id: CGEventFlags.maskCommand.rawValue | CGEventFlags.maskShift.rawValue, label: "Command + Shift"),
-        Self(id: CGEventFlags.maskControl.rawValue | CGEventFlags.maskCommand.rawValue, label: "Control + Command"),
-        Self(id: CGEventFlags.maskAlternate.rawValue | CGEventFlags.maskShift.rawValue, label: "Option + Shift"),
+        Self(id: CGEventFlags.maskControl.rawValue | CGEventFlags.maskAlternate.rawValue, label: .controlOption),
+        Self(id: CGEventFlags.maskControl.rawValue | CGEventFlags.maskShift.rawValue, label: .controlShift),
+        Self(id: CGEventFlags.maskCommand.rawValue | CGEventFlags.maskAlternate.rawValue, label: .commandOption),
+        Self(id: CGEventFlags.maskCommand.rawValue | CGEventFlags.maskShift.rawValue, label: .commandShift),
+        Self(id: CGEventFlags.maskControl.rawValue | CGEventFlags.maskCommand.rawValue, label: .controlCommand),
+        Self(id: CGEventFlags.maskAlternate.rawValue | CGEventFlags.maskShift.rawValue, label: .optionShift),
     ]
 }
 
 struct ShortcutSettingsView: View {
     @ObservedObject var controller: AppController
+    private var language: DisplayLanguage { controller.displayLanguage }
 
     var body: some View {
         Form {
-            Section("Keyboard shortcuts") {
-                shortcutRow("Undo last correction", action: .undoCorrection, hotkey: controller.hotkeys.undo)
-                shortcutRow("Force-correct current word", action: .forceCorrection, hotkey: controller.hotkeys.force)
-                Text("Shortcuts work in supported editable fields. Force correction also works immediately after a space.")
+            Section(InterfaceText.language.localized(language)) {
+                Picker(InterfaceText.languageChoice.localized(language), selection: Binding(
+                    get: { controller.interfaceLanguage },
+                    set: { controller.setInterfaceLanguage($0) }
+                )) {
+                    Text(InterfaceText.systemLanguage.localized(language)).tag(InterfaceLanguage.system)
+                    Text(InterfaceText.russianLanguage.localized(language)).tag(InterfaceLanguage.russian)
+                    Text(InterfaceText.englishLanguage.localized(language)).tag(InterfaceLanguage.english)
+                }
+                .accessibilityIdentifier("interfaceLanguagePicker")
+            }
+
+            Section(InterfaceText.keyboardShortcuts.localized(language)) {
+                shortcutRow(InterfaceText.undoLastCorrection.localized(language), action: .undoCorrection, hotkey: controller.hotkeys.undo)
+                shortcutRow(InterfaceText.forceCorrectCurrentWord.localized(language), action: .forceCorrection, hotkey: controller.hotkeys.force)
+                Text(InterfaceText.shortcutHelp.localized(language))
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                if let error = controller.shortcutError {
-                    Text(error).foregroundStyle(.red)
+                if controller.shortcutError != nil {
+                    Text(InterfaceText.shortcutConflict.localized(language)).foregroundStyle(.red)
                 }
             }
 
-            Section("Feedback") {
-                Toggle("Play sound when layout changes", isOn: Binding(
+            Section(InterfaceText.feedback.localized(language)) {
+                Toggle(InterfaceText.playSound.localized(language), isOn: Binding(
                     get: { controller.soundEnabled },
                     set: { controller.setSoundEnabled($0) }
                 ))
             }
         }
         .formStyle(.grouped)
-        .frame(minWidth: 560, minHeight: 250)
+        .frame(minWidth: 560, minHeight: 320)
     }
 
     private func shortcutRow(
@@ -65,7 +78,7 @@ struct ShortcutSettingsView: View {
         HStack {
             Text(title)
             Spacer()
-            Picker("Modifiers", selection: Binding(
+            Picker(InterfaceText.modifiers.localized(language), selection: Binding(
                 get: { hotkey.modifiers },
                 set: { modifiers in
                     controller.setHotkey(Hotkey(
@@ -76,13 +89,13 @@ struct ShortcutSettingsView: View {
                 }
             )) {
                 ForEach(ShortcutModifiersChoice.all) { choice in
-                    Text(choice.label).tag(choice.id)
+                    Text(choice.label.localized(language)).tag(choice.id)
                 }
             }
             .labelsHidden()
             .frame(width: 180)
 
-            Picker("Key", selection: Binding(
+            Picker(InterfaceText.key.localized(language), selection: Binding(
                 get: { hotkey.keyCode },
                 set: { keyCode in
                     guard let choice = ShortcutKeyChoice.all.first(where: { $0.id == keyCode }) else { return }
@@ -94,7 +107,7 @@ struct ShortcutSettingsView: View {
                 }
             )) {
                 ForEach(ShortcutKeyChoice.all) { choice in
-                    Text(choice.label).tag(choice.id)
+                    Text(choice.id == 49 ? InterfaceText.space.localized(language) : choice.label).tag(choice.id)
                 }
             }
             .labelsHidden()

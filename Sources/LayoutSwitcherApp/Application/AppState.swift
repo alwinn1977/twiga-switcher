@@ -20,6 +20,15 @@ public enum AppState: Equatable, Sendable {
         }
     }
 
+    public func title(in language: DisplayLanguage) -> String {
+        switch self {
+        case .active: return InterfaceText.automaticCorrectionActive.localized(language)
+        case .paused: return InterfaceText.automaticCorrectionPaused.localized(language)
+        case .permissionsRequired: return InterfaceText.permissionsRequired.localized(language)
+        case let .error(message): return InterfaceText.diagnostic(message, in: language)
+        }
+    }
+
     public var systemImage: String {
         switch self {
         case .active: return "keyboard.badge.ellipsis"

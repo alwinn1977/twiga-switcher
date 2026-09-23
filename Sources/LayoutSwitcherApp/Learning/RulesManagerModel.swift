@@ -4,7 +4,9 @@ import Foundation
 @MainActor
 public final class RulesManagerModel: ObservableObject {
     @Published public private(set) var rules: [UserRule] = []
-    @Published public private(set) var statusMessage: String?
+    @Published private(set) var status: InterfaceStatus?
+    public var statusMessage: String? { status?.localized(.english) }
+    public func statusMessage(in language: DisplayLanguage) -> String? { status?.localized(language) }
 
     private let store: UserRuleStore
     private let confirmDeleteAll: @MainActor () -> Bool
@@ -27,7 +29,7 @@ public final class RulesManagerModel: ObservableObject {
             try store.remove(rule)
             refresh()
         } catch {
-            statusMessage = "Unable to remove rule: \(error)"
+            status = .removeRuleFailed(String(describing: error))
         }
     }
 
@@ -37,7 +39,7 @@ public final class RulesManagerModel: ObservableObject {
             try store.removeAll()
             refresh()
         } catch {
-            statusMessage = "Unable to remove rules: \(error)"
+            status = .removeRulesFailed(String(describing: error))
         }
     }
 }

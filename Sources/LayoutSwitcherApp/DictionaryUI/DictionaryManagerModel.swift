@@ -12,6 +12,30 @@ public struct DictionaryManagerRow: Identifiable, Equatable, Sendable {
     public var isEnabled: Bool
     public let canRemove: Bool
     public let noticeURL: URL?
+    public let importedEntryCount: Int?
+    public let importedLanguages: String?
+    public let importedLicense: String?
+
+    public func displayName(in language: DisplayLanguage) -> String {
+        guard isBuiltIn else { return name }
+        switch id {
+        case "dev.layoutswitcher.base.english": return InterfaceText.englishFrequencyDictionary.localized(language)
+        case "dev.layoutswitcher.base.russian": return InterfaceText.russianFrequencyDictionary.localized(language)
+        case "dev.layoutswitcher.dictionary.computer-terms": return InterfaceText.computerTerms.localized(language)
+        default: return name
+        }
+    }
+
+    public func displayDetail(in language: DisplayLanguage) -> String {
+        if isBase { return InterfaceText.baseDictionaryDetail.localized(language) }
+        if isBuiltIn { return InterfaceText.builtInSubjectDictionary.localized(language) }
+        if let importedLanguages, let importedEntryCount, let importedLicense {
+            return InterfaceText.importedDictionaryDetail.localized(
+                language, importedLanguages, importedEntryCount, importedLicense
+            )
+        }
+        return detail
+    }
 }
 
 @MainActor
@@ -21,7 +45,9 @@ public final class DictionaryManagerModel: ObservableObject {
 
     @Published public private(set) var rows: [DictionaryManagerRow] = []
     @Published public private(set) var isWorking = false
-    @Published public private(set) var statusMessage: String?
+    @Published private(set) var status: InterfaceStatus?
+    public var statusMessage: String? { status?.localized(.english) }
+    public func statusMessage(in language: DisplayLanguage) -> String? { status?.localized(language) }
 
     private let store: DictionaryPackStore
     private let importer: DictionaryPackImporter
@@ -61,7 +87,10 @@ public final class DictionaryManagerModel: ObservableObject {
                 isBuiltIn: true,
                 isEnabled: true,
                 canRemove: false,
-                noticeURL: nil
+                noticeURL: nil,
+                importedEntryCount: nil,
+                importedLanguages: nil,
+                importedLicense: nil
             ),
             DictionaryManagerRow(
                 id: "dev.layoutswitcher.base.russian",
@@ -72,7 +101,10 @@ public final class DictionaryManagerModel: ObservableObject {
                 isBuiltIn: true,
                 isEnabled: true,
                 canRemove: false,
-                noticeURL: nil
+                noticeURL: nil,
+                importedEntryCount: nil,
+                importedLanguages: nil,
+                importedLicense: nil
             ),
             DictionaryManagerRow(
                 id: "dev.layoutswitcher.dictionary.computer-terms",
@@ -83,7 +115,10 @@ public final class DictionaryManagerModel: ObservableObject {
                 isBuiltIn: true,
                 isEnabled: computerTermsSettings.isEnabled,
                 canRemove: false,
-                noticeURL: BundledLexiconResources.computerTermsNoticeURL()
+                noticeURL: BundledLexiconResources.computerTermsNoticeURL(),
+                importedEntryCount: nil,
+                importedLanguages: nil,
+                importedLicense: nil
             ),
         ]
         if let packs = try? store.installedPacks() {
@@ -100,7 +135,10 @@ public final class DictionaryManagerModel: ObservableObject {
                     isBuiltIn: false,
                     isEnabled: store.isEnabled(pack.identifier),
                     canRemove: true,
-                    noticeURL: FileManager.default.fileExists(atPath: notice.path) ? notice : nil
+                    noticeURL: FileManager.default.fileExists(atPath: notice.path) ? notice : nil,
+                    importedEntryCount: count,
+                    importedLanguages: languages,
+                    importedLicense: pack.manifest.attribution.license
                 )
             })
         }
@@ -109,16 +147,16 @@ public final class DictionaryManagerModel: ObservableObject {
 
     public func importPackage(at url: URL) async {
         isWorking = true
-        statusMessage = nil
+        status = nil
         defer { isWorking = false }
         do {
             let installed = try await importer.importPackage(at: url, into: store.directoryURL, existingPolicy: .replace)
             try store.setEnabled(true, identifier: installed.identifier)
             await reloadCatalog()
             refresh()
-            statusMessage = "Imported \(installed.manifest.name)"
+            status = .imported(installed.manifest.name)
         } catch {
-            statusMessage = "Import failed: \(error)"
+            status = .importFailed(String(describing: error))
         }
     }
 
@@ -133,7 +171,7 @@ public final class DictionaryManagerModel: ObservableObject {
             await reloadCatalog()
             refresh()
         } catch {
-            statusMessage = "Unable to update dictionary: \(error)"
+            status = .updateDictionaryFailed(String(describing: error))
         }
     }
 
@@ -144,7 +182,7 @@ public final class DictionaryManagerModel: ObservableObject {
             await reloadCatalog()
             refresh()
         } catch {
-            statusMessage = "Unable to remove dictionary: \(error)"
+            status = .removeDictionaryFailed(String(describing: error))
         }
     }
 

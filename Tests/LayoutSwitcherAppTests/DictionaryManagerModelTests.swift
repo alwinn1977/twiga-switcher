@@ -34,6 +34,8 @@ final class DictionaryManagerModelTests: XCTestCase {
         XCTAssertTrue(builtIn.isEnabled)
         XCTAssertFalse(model.rows.first { $0.id == builtIn.id }?.isEnabled == true)
         XCTAssertFalse(base.canRemove)
+        XCTAssertEqual(base.displayName(in: .russian), "Частотный словарь английского языка")
+        XCTAssertEqual(base.displayDetail(in: .russian), "Базовый словарь · всегда включён")
     }
 
     @MainActor
@@ -50,6 +52,8 @@ final class DictionaryManagerModelTests: XCTestCase {
         await model.importPackage(at: package)
         var row = try XCTUnwrap(model.rows.first { $0.id == "dev.layoutswitcher.model-test" })
         XCTAssertTrue(row.isEnabled)
+        XCTAssertEqual(row.displayName(in: .russian), "Model Test")
+        XCTAssertEqual(row.displayDetail(in: .russian), "en · записей: 1 · MIT")
         await model.setEnabled(false, row: row)
         row = try XCTUnwrap(model.rows.first { $0.id == row.id })
         XCTAssertFalse(row.isEnabled)
@@ -70,7 +74,26 @@ final class DictionaryManagerModelTests: XCTestCase {
         await model.importPackage(at: package)
 
         XCTAssertTrue(model.statusMessage?.contains("Import failed") == true)
+        XCTAssertTrue(model.statusMessage(in: .russian)?.contains("Ошибка импорта") == true)
         XCTAssertEqual(model.rows.filter { !$0.isBuiltIn }.count, 0)
+    }
+
+    func testImportedNameIsPreservedEvenWhenIdentifierMatchesBuiltIn() {
+        let row = DictionaryManagerRow(
+            id: "dev.layoutswitcher.base.english",
+            name: "My English Terms",
+            version: "1.0",
+            detail: "custom",
+            isBase: false,
+            isBuiltIn: false,
+            isEnabled: true,
+            canRemove: true,
+            noticeURL: nil,
+            importedEntryCount: 1,
+            importedLanguages: "en",
+            importedLicense: "MIT"
+        )
+        XCTAssertEqual(row.displayName(in: .russian), "My English Terms")
     }
 
     private func makePackage(entries: String = "en\t4200\tGraphQL\n") throws -> URL {

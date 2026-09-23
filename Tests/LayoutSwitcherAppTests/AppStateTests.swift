@@ -117,4 +117,25 @@ final class AppStateTests: XCTestCase {
         XCTAssertEqual(monitor.configuredSound, false)
         XCTAssertFalse(defaults.bool(forKey: "layoutSwitchSoundEnabled"))
     }
+
+    @MainActor
+    func testInterfaceLanguageDefaultsToSystemAndPersistsExplicitChoice() throws {
+        let suiteName = "AppLanguagePreferences-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let controller = AppController(
+            permissions: StubPermissionManager(),
+            monitor: StubKeyboardMonitor(),
+            initialEnabled: false,
+            hotkeyStore: HotkeyStore(defaults: defaults),
+            defaults: defaults
+        )
+
+        XCTAssertEqual(controller.interfaceLanguage, .system)
+        controller.setInterfaceLanguage(.russian)
+        XCTAssertEqual(controller.interfaceLanguage, .russian)
+        XCTAssertEqual(defaults.string(forKey: "interfaceLanguage"), "russian")
+        controller.setInterfaceLanguage(.system)
+        XCTAssertEqual(defaults.string(forKey: "interfaceLanguage"), "system")
+    }
 }

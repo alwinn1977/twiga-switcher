@@ -10,6 +10,7 @@ public final class AppController: ObservableObject {
     @Published public private(set) var hotkeys: HotkeyConfiguration
     @Published public private(set) var soundEnabled: Bool
     @Published public private(set) var shortcutError: String?
+    @Published public private(set) var interfaceLanguage: InterfaceLanguage
 
     private let permissions: any PermissionManaging
     private let monitor: any KeyboardMonitoring
@@ -31,6 +32,7 @@ public final class AppController: ObservableObject {
         self.defaults = defaults
         self.hotkeys = hotkeyStore.configuration
         self.soundEnabled = defaults.object(forKey: "layoutSwitchSoundEnabled") as? Bool ?? true
+        self.interfaceLanguage = InterfaceLanguage(rawValue: defaults.string(forKey: "interfaceLanguage") ?? "") ?? .system
         self.isEnabled = initialEnabled
             ?? defaults.object(forKey: "automaticCorrectionEnabled") as? Bool
             ?? true
@@ -112,6 +114,13 @@ public final class AppController: ObservableObject {
         soundEnabled = enabled
         defaults.set(enabled, forKey: "layoutSwitchSoundEnabled")
         monitor.setSoundEnabled(enabled)
+    }
+
+    public var displayLanguage: DisplayLanguage { interfaceLanguage.resolve() }
+
+    public func setInterfaceLanguage(_ language: InterfaceLanguage) {
+        interfaceLanguage = language
+        defaults.set(language.rawValue, forKey: "interfaceLanguage")
     }
 
     public func reloadDictionaries() async {
