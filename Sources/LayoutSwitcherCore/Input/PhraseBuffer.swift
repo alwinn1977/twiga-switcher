@@ -16,7 +16,6 @@ public struct PhraseBuffer: Sendable {
     private var text = ""
     private var script: Script?
     private var isBlocked = false
-    private var hasProvisionalPunctuation = false
 
     public var hasPendingText: Bool { !text.isEmpty && !isBlocked }
     public var currentWord: BufferedCandidate? { makeCandidates().last }
@@ -38,9 +37,12 @@ public struct PhraseBuffer: Sendable {
                 clear()
                 return .blockedBoundary(delimiter)
             }
-            if text.isEmpty, delimiter == "." {
-                text = "."
-                hasProvisionalPunctuation = true
+            if script == nil,
+               text.count < 2,
+               text.allSatisfy({ ",.".contains($0) }),
+               [",", "."].contains(delimiter) {
+                text += delimiter
+                enforceLimits()
                 return .buffered
             }
             let candidates = makeCandidates()
@@ -98,7 +100,6 @@ public struct PhraseBuffer: Sendable {
             script = characterScript
         }
         text.append(character)
-        hasProvisionalPunctuation = false
         enforceLimits()
     }
 
@@ -106,24 +107,24 @@ public struct PhraseBuffer: Sendable {
         guard delimiter.count == 1 else { return false }
         if delimiter == " " {
             text.append(" ")
-            hasProvisionalPunctuation = false
             return true
         }
-        guard delimiter == ".", !hasProvisionalPunctuation else { return false }
-        text.append(".")
-        hasProvisionalPunctuation = true
+        guard [".", ",", ";"].contains(delimiter),
+              text.reversed().prefix(while: { ".,;".contains($0) }).count < 2 else {
+            return false
+        }
+        text += delimiter
         return true
     }
 
     private func canRetain(delimiter: String) -> Bool {
-        delimiter == " " || delimiter == "."
+        delimiter == " " || delimiter == "." || delimiter == "," || delimiter == ";"
     }
 
     private mutating func removeLast() {
         guard !isBlocked, !text.isEmpty else { return }
         text.removeLast()
         script = detectedScript(in: text)
-        hasProvisionalPunctuation = text.last == "."
     }
 
     private mutating func enforceLimits() {
@@ -136,7 +137,6 @@ public struct PhraseBuffer: Sendable {
     private mutating func block() {
         text = ""
         script = nil
-        hasProvisionalPunctuation = false
         isBlocked = true
     }
 
@@ -144,7 +144,6 @@ public struct PhraseBuffer: Sendable {
         text = ""
         script = nil
         isBlocked = false
-        hasProvisionalPunctuation = false
     }
 
     private func makeCandidates() -> [BufferedCandidate] {

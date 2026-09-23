@@ -30,6 +30,44 @@ final class PhraseBufferTests: XCTestCase {
         XCTAssertEqual(buffer.handle(.boundary(" ")).candidates.first?.text, "Node.js")
     }
 
+    func testLeadingCommaPeriodAndDeferredSemicolonFormBudgetCandidate() throws {
+        var buffer = PhraseBuffer()
+        _ = buffer.handle(.boundary(","))
+        _ = buffer.handle(.boundary("."))
+        _ = buffer.handle(.character("l"))
+        let semicolon = buffer.handle(.boundary(";"))
+        let prefix = try XCTUnwrap(semicolon.candidates.first)
+        buffer.resolve(semicolon, disposition: .deferForPhrase(prefix))
+        for letter in "tn" { _ = buffer.handle(.character(letter)) }
+        XCTAssertEqual(buffer.handle(.boundary(" ")).candidates.first?.text, ",.l;tn")
+    }
+
+    func testDeferredPeriodThenCommaFormsAnyCandidate() throws {
+        var buffer = PhraseBuffer()
+        _ = buffer.handle(.character("k"))
+        let dot = buffer.handle(.boundary("."))
+        buffer.resolve(dot, disposition: .deferForPhrase(try XCTUnwrap(dot.candidates.first)))
+        let comma = buffer.handle(.boundary(","))
+        buffer.resolve(comma, disposition: .deferForPhrase(try XCTUnwrap(comma.candidates.first)))
+        for letter in "jq" { _ = buffer.handle(.character(letter)) }
+        XCTAssertEqual(buffer.handle(.boundary(" ")).candidates.first?.text, "k.,jq")
+    }
+
+    func testIsolatedPunctuationDoesNotBecomeAWordOrRunUnbounded() {
+        var comma = PhraseBuffer()
+        _ = comma.handle(.boundary(","))
+        XCTAssertTrue(comma.handle(.boundary(" ")).candidates.isEmpty)
+        var dot = PhraseBuffer()
+        _ = dot.handle(.boundary("."))
+        XCTAssertTrue(dot.handle(.boundary(" ")).candidates.isEmpty)
+        var run = PhraseBuffer()
+        _ = run.handle(.boundary(","))
+        _ = run.handle(.boundary("."))
+        _ = run.handle(.boundary("."))
+        _ = run.handle(.character("l"))
+        XCTAssertEqual(run.handle(.boundary(" ")).candidates.first?.text, "l")
+    }
+
     func testDeferredShorterSuffixDropsStalePrefix() throws {
         var buffer = PhraseBuffer()
         feed("alpha", to: &buffer)

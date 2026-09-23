@@ -35,10 +35,14 @@ final class InputPipelineTests: XCTestCase {
                         "node.js": .init(score: 4_200, subject: true),
                         "machine learning": .init(score: 4_100, subject: true),
                         "machine vision": .init(score: 4_000, subject: true),
+                        "c++": .init(score: 4_000, subject: true),
                     ],
                     .russian: [
                         "и": .init(score: 7_400, subject: false),
                         "привет": .init(score: 5_100, subject: false),
+                        "компьютер": .init(score: 5_000, subject: false),
+                        "бюджет": .init(score: 5_000, subject: false),
+                        "любой": .init(score: 5_000, subject: false),
                     ],
                 ]),
                 rules: NoUserCorrectionRules()
@@ -89,6 +93,53 @@ final class InputPipelineTests: XCTestCase {
         feed("ghbdtn", to: &pipeline)
         XCTAssertEqual(
             pipeline.handle(.boundary(" "), focusIsSafe: true),
+            .replace(.init(deleteKeyCount: 6, replacement: "привет", delimiter: " ", targetLayout: .russian))
+        )
+    }
+
+    func testWrongLayoutWordsKeepDotCommaAndSemicolonUntilCompletion() {
+        let cases: [(String, String, Int)] = [
+            ("rjvgm.nth", "компьютер", 9),
+            ("k.,jq", "любой", 5),
+            (",.l;tn", "бюджет", 6)
+        ]
+        for (raw, expected, keyCount) in cases {
+            var pipeline = makePipeline()
+            for character in raw {
+                let input: InputEvent = ",.;".contains(character)
+                    ? .boundary(String(character)) : .character(character)
+                _ = pipeline.handle(input, focusIsSafe: true)
+            }
+            XCTAssertEqual(
+                pipeline.handle(.boundary(" "), focusIsSafe: true),
+                .replace(.init(
+                    deleteKeyCount: keyCount,
+                    replacement: expected,
+                    delimiter: " ",
+                    targetLayout: .russian
+                )),
+                raw
+            )
+        }
+    }
+
+    func testCorrectPunctuationTermsAndSentenceMarksStayLiteral() {
+        for word in ["Node.js", ".NET", "C++"] {
+            var pipeline = makePipeline()
+            for character in word {
+                let input: InputEvent = character == "."
+                    ? .boundary(".") : .character(character)
+                _ = pipeline.handle(input, focusIsSafe: true)
+            }
+            XCTAssertEqual(pipeline.handle(.boundary(" "), focusIsSafe: true), .passThrough, word)
+        }
+        var sentence = makePipeline()
+        feed("hello", to: &sentence)
+        XCTAssertEqual(sentence.handle(.boundary("."), focusIsSafe: true), .passThrough)
+        XCTAssertEqual(sentence.handle(.boundary(" "), focusIsSafe: true), .passThrough)
+        feed("ghbdtn", to: &sentence)
+        XCTAssertEqual(
+            sentence.handle(.boundary(" "), focusIsSafe: true),
             .replace(.init(deleteKeyCount: 6, replacement: "привет", delimiter: " ", targetLayout: .russian))
         )
     }
