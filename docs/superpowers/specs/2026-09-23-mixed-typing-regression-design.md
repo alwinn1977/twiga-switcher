@@ -7,7 +7,7 @@ Approved in conversation on 2026-09-23. The goal is to establish whether LayoutS
 ## Acceptance criteria
 
 - A reviewable, literal UTF-8 corpus contains at least 20 lines. Every line mixes Russian and English words or computer terms; across the corpus it exercises both correction directions, ordinary words, subject terms, multiword terms, spaces, sentence punctuation, and consecutive language changes.
-- The corpus includes the exact physical-key sequence `rjvgm.nth`, which must produce `компьютер` when typed with the English layout instead of Russian. The internal `.` is a layout-dependent key, not a sentence boundary in this case.
+- The corpus includes at least eight distinct Russian words whose physical-key sequences contain `.` when typed with the English layout, including `rjvgm.nth` → `компьютер`. It also includes words whose wrong-layout input uses `,` or `;`. These characters must be interpreted in word context as layout-dependent keys when appropriate, not universally as sentence punctuation.
 - Two integration tests feed the corpus as a sequence of physical keys through the app's real event-normalization, focus-processing, detection, replacement, and layout-selection path. One begins in a declared layout and never manually switches; the other manually selects the intended layout at annotated language boundaries while automatic correction remains enabled.
 - In both tests the resulting editor text equals the literal expected corpus byte-for-byte after every line and at the end. Layout checkpoints and the count/direction of corrections are checked independently; a correct final string reached through unintended intermediate corruption is not sufficient.
 - Correctly typed words remain unchanged. Synthetic replacement events cannot recursively trigger correction. The tests use isolated rules and bundled dictionaries, never the user's rules or documents.
@@ -23,11 +23,44 @@ The guarantee is for this documented corpus and supported editable fields, not a
 
 ## Corpus and input model
 
-The expected text is written by hand and committed as a fixture; it is never produced by `LayoutConverter` or by applying the implementation's correction plans to itself. A companion scenario description marks intended language spans and the explicit manual-switch positions for the second test. The same expected text is used for both modes.
+The expected text is written by hand and committed as a fixture; it is never produced by `LayoutConverter` or by applying the implementation's correction plans to itself. The same expected text is used for both modes. In the manual scenario, the driver selects the layout of each next word before its first key whenever that word's Cyrillic/Latin script differs from the active layout; punctuation inherits the preceding word's layout.
 
 The test driver maps each intended printable key to its physical US/Russian keyboard position with a small independent fixture mapping. It emits a `CGEvent` containing the character actually produced by the current simulated input source. This makes `rjvgm.nth` observable as raw input rather than calling the conversion API directly. Spaces, newlines, punctuation, and modifier transitions use their actual keycodes. The simulator updates its current layout only when LayoutSwitcher selects a source or when the manual scenario explicitly switches it.
 
 The corpus should use supported US/Russian printable keys and realistic vocabulary. It must not be constructed only from words already known to pass; any failing line is preserved as a regression case. New dictionary entries are acceptable only when they are legitimate general or computer terms, not as hidden test overrides.
+
+### Literal expected text
+
+The following 24 lines, including the final newline, are the expected editor contents in **both** scenarios. This text is the independent oracle for the integration tests, not an illustration to be generated later.
+
+```text
+компьютер запускает Linux, затем browser показывает страницу проекта.
+Редактор открывает Node.js, меню показывает logs, пока editor сохраняет файл.
+Разработчик пишет TypeScript, люди читают русский комментарий.
+Сервис Docker запускает PostgreSQL, бюджет проекта остается прежним.
+Кластер Kubernetes запускает pod, любой разработчик видит статус.
+Новый API возвращает JSON, ключ защищает ответ клиента.
+Запрос HTTP приходит в backend, мьютекс защищает общий журнал.
+Система macOS запускает SwiftUI, плюс проверяет layout после слова.
+Команда Git создает commit, потом reviewer читает diff.
+Проверка CI запускает tests, когда изменился исходный код.
+Файл README описывает setup, русский текст уточняет шаги.
+Старый C++ модуль вызывает library, возвращает число.
+Платформа .NET собирает build, пользователь смотрит прогресс.
+Адрес localhost открывает dashboard, показывает новые данные.
+Редактор TextEdit печатает привет, затем hello, потом снова привет.
+Страница browser показывает Linux, содержит документацию.
+Значение timeout защищает request, когда сеть отвечает медленно.
+Модель machine learning изучает данные, однако не хранит ввод.
+После update приложение читает config, обновляет словарь.
+Параметр cache ускоряет lookup, память остается стабильной.
+Меню terminal показывает error, разработчик открывает report.
+Ключ API защищает request, когда сеть отвечает медленно.
+Второй компьютер проверяет Windows, затем запускает Linux.
+Финальная строка содержит Node.js, компьютер, English words.
+```
+
+For the no-manual-switch test the initial source is English. Its first physical keys must therefore be `rjvgm.nth`, producing `компьютер` after the first space. The following independent raw-key checkpoints cover the class, not just that example: `vty.` → `меню`, `k.lb` → `люди`, `,.l;tn` → `бюджет`, `k.,jq` → `любой`, `rk.x` → `ключ`, `vm.ntrc` → `мьютекс`, and `gk.c` → `плюс`. Each appears immediately after an English term in the expected text, so the automatic scenario should encounter it while English is active. The manual-switch test selects Russian before the first word and switches to the intended language at each script transition; its expected text is identical.
 
 ## Test driver and assertions
 
