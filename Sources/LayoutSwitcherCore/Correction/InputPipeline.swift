@@ -31,9 +31,11 @@ public struct InputPipeline<Lexicon: FrequencyLexicon, Rules: UserCorrectionRule
             return .passThrough
         }
 
-        if [".", ",", ";"].contains(delimiter), let last = candidates.last {
+        if [".", ",", ";"].contains(delimiter),
+           let longest = candidates.first,
+           let last = candidates.last {
             recentWord = RecentWord(candidate: last, delimiter: delimiter)
-            buffer.resolve(result, disposition: .deferForPhrase(last))
+            buffer.resolve(result, disposition: .deferForPhrase(longest))
             return .passThrough
         }
 
@@ -115,8 +117,31 @@ public struct InputPipeline<Lexicon: FrequencyLexicon, Rules: UserCorrectionRule
         let candidate: BufferedCandidate
         let delimiter: String
         if let current = buffer.currentWord {
-            candidate = current
-            delimiter = ""
+            if let recentWord,
+               [".", ",", ";"].contains(recentWord.delimiter),
+               current.text.hasSuffix(recentWord.candidate.text + recentWord.delimiter) {
+                let fullConversion = converter.convert(current.text)
+                let fullIsRecognizedCorrection = fullConversion.map {
+                    if case .correct = detector.decision(original: current.text, conversion: $0) {
+                        return true
+                    }
+                    return false
+                } ?? false
+                if fullIsRecognizedCorrection {
+                    candidate = current
+                    delimiter = ""
+                } else {
+                    candidate = .init(
+                        text: String(current.text.dropLast(recentWord.delimiter.count)),
+                        physicalKeyCount: current.physicalKeyCount - recentWord.delimiter.count,
+                        tokenCount: current.tokenCount
+                    )
+                    delimiter = recentWord.delimiter
+                }
+            } else {
+                candidate = current
+                delimiter = ""
+            }
         } else if let recentWord {
             candidate = recentWord.candidate
             delimiter = recentWord.delimiter

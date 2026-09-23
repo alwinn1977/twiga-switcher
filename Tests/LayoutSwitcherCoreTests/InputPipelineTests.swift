@@ -253,6 +253,26 @@ final class InputPipelineTests: XCTestCase {
         )
     }
 
+    func testDeferredTwoWordPhraseSurvivesTerminalPunctuation() {
+        for punctuation in [",", ".", ";"] {
+            var pipeline = makePipeline()
+            feed("ьфсршту", to: &pipeline)
+            XCTAssertEqual(pipeline.handle(.boundary(" "), focusIsSafe: true), .passThrough)
+            feed("дуфктштп", to: &pipeline)
+            XCTAssertEqual(pipeline.handle(.boundary(punctuation), focusIsSafe: true), .passThrough)
+            XCTAssertEqual(
+                pipeline.handle(.boundary(" "), focusIsSafe: true),
+                .replace(.init(
+                    deleteKeyCount: 17,
+                    replacement: "machine learning",
+                    delimiter: punctuation + " ",
+                    targetLayout: .english
+                )),
+                punctuation
+            )
+        }
+    }
+
     func testUsesShorterSuffixWhenLongerPhraseMisses() {
         var pipeline = makePipeline()
         feed("ьфсршту", to: &pipeline)
@@ -343,6 +363,28 @@ final class InputPipelineTests: XCTestCase {
             .replace(.init(deleteKeyCount: 5, replacement: "linux", delimiter: "", targetLayout: .english))
         )
         XCTAssertEqual(pipeline.latestDecisionPair, .init(source: "дштгч", candidate: "linux"))
+    }
+
+    func testForcePreservesTerminalCommaAsPunctuation() {
+        var pipeline = makePipeline()
+        feed("qzq", to: &pipeline)
+        XCTAssertEqual(pipeline.handle(.boundary(","), focusIsSafe: true), .passThrough)
+
+        XCTAssertEqual(
+            pipeline.forceCorrection(focusIsSafe: true),
+            .replace(.init(deleteKeyCount: 4, replacement: "йяй", delimiter: ",", targetLayout: .russian))
+        )
+    }
+
+    func testForceCanCorrectRecognizedWordEndingInPhysicalDot() {
+        var pipeline = makePipeline()
+        feed("vty", to: &pipeline)
+        XCTAssertEqual(pipeline.handle(.boundary("."), focusIsSafe: true), .passThrough)
+
+        XCTAssertEqual(
+            pipeline.forceCorrection(focusIsSafe: true),
+            .replace(.init(deleteKeyCount: 4, replacement: "меню", delimiter: "", targetLayout: .russian))
+        )
     }
 
     func testForceCorrectsLastCompletedWordAndKeepsSpace() {
