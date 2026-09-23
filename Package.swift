@@ -25,7 +25,7 @@ let package = Package(
         .executableTarget(name: "LayoutSwitcherApp", dependencies: ["LayoutSwitcherCore", "LayoutSwitcherLexicon"]),
         .testTarget(name: "LayoutSwitcherCoreTests", dependencies: ["LayoutSwitcherCore"]),
         .testTarget(name: "LayoutSwitcherLexiconTests", dependencies: ["LayoutSwitcherLexicon", "LayoutSwitcherCore"]),
-        .testTarget(name: "LayoutSwitcherAppTests", dependencies: ["LayoutSwitcherApp", "LayoutSwitcherCore"]),
+        .testTarget(name: "LayoutSwitcherAppTests", dependencies: ["LayoutSwitcherApp", "LayoutSwitcherCore", "LayoutSwitcherLexicon"]),
     ],
     swiftLanguageModes: [.v6]
 )
