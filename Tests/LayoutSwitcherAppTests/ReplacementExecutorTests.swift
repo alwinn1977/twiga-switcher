@@ -31,6 +31,19 @@ final class ReplacementExecutorTests: XCTestCase {
         XCTAssertEqual(sources.selectedLayouts, [.russian])
     }
 
+    func testForceCorrectionWithoutDelimiterDoesNotPostEmptyKeyEvent() {
+        let events = RecordingEventPoster()
+        let sources = RecordingInputSourceManager(result: true)
+        let executor = ReplacementExecutor(eventPoster: events, inputSources: sources)
+
+        XCTAssertEqual(
+            executor.execute(.init(deleteKeyCount: 3, replacement: "йяй", delimiter: "", targetLayout: .russian)),
+            .completed
+        )
+        XCTAssertEqual(events.actions, [.backspace(count: 3), .unicode("йяй")])
+        XCTAssertEqual(sources.selectedLayouts, [.russian])
+    }
+
     func testMissingInputSourceDoesNotRepeatText() {
         let events = RecordingEventPoster(); let sources = RecordingInputSourceManager(result: false)
         let executor = ReplacementExecutor(eventPoster: events, inputSources: sources)

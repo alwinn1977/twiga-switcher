@@ -32,9 +32,6 @@ final class FocusedInputProcessorTests: XCTestCase {
         let focus = FocusSnapshot(identity: .init(processID: 10, elementHash: 20))
 
         XCTAssertEqual(processor.handle(.character("G"), focus: focus), .passThrough)
-        if let modifierEvent = normalizer.normalizeModifierChange(flags: .maskShift) {
-            _ = processor.handle(modifierEvent, focus: nil)
-        }
         "hbdtn".forEach { XCTAssertEqual(processor.handle(.character($0), focus: nil), .passThrough) }
 
         XCTAssertEqual(
@@ -49,9 +46,6 @@ final class FocusedInputProcessorTests: XCTestCase {
 
         "GHBDTN".enumerated().forEach { index, character in
             _ = processor.handle(.character(character), focus: index == 0 ? focus : nil)
-        }
-        if let modifierEvent = normalizer.normalizeModifierChange(flags: []) {
-            _ = processor.handle(modifierEvent, focus: nil)
         }
 
         XCTAssertEqual(
@@ -93,9 +87,10 @@ final class FocusedInputProcessorTests: XCTestCase {
         "ghb".enumerated().forEach { index, character in
             _ = processor.handle(.character(character), focus: index == 0 ? focus : nil)
         }
-        if let modifierEvent = normalizer.normalizeModifierChange(flags: .maskCommand) {
-            _ = processor.handle(modifierEvent, focus: nil)
-        }
+        _ = processor.handle(
+            normalizer.normalize(.init(text: "c", keyCode: 8, flags: [.maskCommand], marker: 0)),
+            focus: nil
+        )
         "dtn".enumerated().forEach { index, character in
             _ = processor.handle(.character(character), focus: index == 0 ? focus : nil)
         }
@@ -132,5 +127,31 @@ final class FocusedInputProcessorTests: XCTestCase {
         XCTAssertEqual(processor.handle(.boundary("."), focus: focus), .passThrough)
         "NET".forEach { _ = processor.handle(.character($0), focus: nil) }
         XCTAssertEqual(processor.handle(.boundary(" "), focus: focus), .passThrough)
+    }
+
+    func testForceCorrectionRequiresSameEditableField() {
+        var processor = makeProcessor()
+        let first = FocusSnapshot(identity: .init(processID: 10, elementHash: 20))
+        let second = FocusSnapshot(identity: .init(processID: 10, elementHash: 21))
+        "ghbdtn".enumerated().forEach { index, character in
+            _ = processor.handle(.character(character), focus: index == 0 ? first : nil)
+        }
+
+        XCTAssertEqual(processor.forceCorrection(focus: second), .passThrough)
+        XCTAssertEqual(processor.forceCorrection(focus: first), .passThrough)
+    }
+
+    func testForceCorrectionAfterSpaceUsesLastWordInSameField() {
+        var processor = makeProcessor()
+        let focus = FocusSnapshot(identity: .init(processID: 10, elementHash: 20))
+        "qzq".enumerated().forEach { index, character in
+            _ = processor.handle(.character(character), focus: index == 0 ? focus : nil)
+        }
+        XCTAssertEqual(processor.handle(.boundary(" "), focus: focus), .passThrough)
+
+        XCTAssertEqual(
+            processor.forceCorrection(focus: focus),
+            .replace(.init(deleteKeyCount: 4, replacement: "йяй", delimiter: " ", targetLayout: .russian))
+        )
     }
 }

@@ -17,6 +17,8 @@ private final class StubKeyboardMonitor: KeyboardMonitoring, @unchecked Sendable
     private(set) var startCount = 0
     private(set) var stopCount = 0
     private(set) var savedRule: (UserCorrectionDisposition, CorrectionPair)?
+    private(set) var configuredHotkeys: HotkeyConfiguration?
+    private(set) var configuredSound: Bool?
 
     func start() -> Bool {
         startCount += 1
@@ -32,6 +34,9 @@ private final class StubKeyboardMonitor: KeyboardMonitoring, @unchecked Sendable
     func setRule(_ disposition: UserCorrectionDisposition, for pair: CorrectionPair) throws {
         savedRule = (disposition, pair)
     }
+
+    func setHotkeys(_ hotkeys: HotkeyConfiguration) { configuredHotkeys = hotkeys }
+    func setSoundEnabled(_ enabled: Bool) { configuredSound = enabled }
 }
 
 final class AppStateTests: XCTestCase {
@@ -87,5 +92,29 @@ final class AppStateTests: XCTestCase {
         XCTAssertEqual(controller.latestDecisionPair, pair)
         XCTAssertEqual(monitor.savedRule?.0, .never)
         XCTAssertEqual(monitor.savedRule?.1, pair)
+    }
+
+    @MainActor
+    func testShortcutAndSoundPreferencesApplyImmediatelyAndPersist() throws {
+        let suiteName = "AppStatePreferences-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let store = HotkeyStore(defaults: defaults)
+        let monitor = StubKeyboardMonitor()
+        let controller = AppController(
+            permissions: StubPermissionManager(),
+            monitor: monitor,
+            initialEnabled: true,
+            hotkeyStore: store,
+            defaults: defaults
+        )
+        let custom = Hotkey(keyCode: 35, modifiers: [.maskCommand, .maskShift], label: "P")
+
+        XCTAssertTrue(controller.setHotkey(custom, for: .undoCorrection))
+        XCTAssertEqual(monitor.configuredHotkeys?.undo, custom)
+        XCTAssertEqual(store.configuration.undo, custom)
+        controller.setSoundEnabled(false)
+        XCTAssertEqual(monitor.configuredSound, false)
+        XCTAssertFalse(defaults.bool(forKey: "layoutSwitchSoundEnabled"))
     }
 }

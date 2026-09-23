@@ -16,6 +16,9 @@ struct LayoutSwitcherMain: App {
         Window("Rules", id: "rules") {
             RulesManagerView()
         }
+        Window("Settings", id: "settings") {
+            ShortcutSettingsView(controller: controller)
+        }
     }
 }
 
@@ -39,6 +42,7 @@ private struct LayoutSwitcherMenu: View {
         Divider()
         Button("Dictionaries…") { openWindow(id: "dictionaries") }
         Button("Rules…") { openWindow(id: "rules") }
+        Button("Shortcuts & Sound…") { openWindow(id: "settings") }
         if let pair = controller.latestDecisionPair {
             Divider()
             Button("Always correct \(label(pair))") { controller.setLatestRule(.always) }

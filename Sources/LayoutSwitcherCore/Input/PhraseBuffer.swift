@@ -19,6 +19,7 @@ public struct PhraseBuffer: Sendable {
     private var hasProvisionalPunctuation = false
 
     public var hasPendingText: Bool { !text.isEmpty && !isBlocked }
+    public var currentWord: BufferedCandidate? { makeCandidates().last }
 
     public init(maxTokens: Int = 8, maxScalars: Int = 128) {
         precondition(maxTokens > 0 && maxScalars > 0)
@@ -57,7 +58,7 @@ public struct PhraseBuffer: Sendable {
             clear()
             return .cleared
 
-        case .commandZ, .synthetic:
+        case .synthetic:
             return .buffered
         }
     }

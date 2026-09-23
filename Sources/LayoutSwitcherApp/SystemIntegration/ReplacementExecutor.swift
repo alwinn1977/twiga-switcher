@@ -25,7 +25,7 @@ public final class ReplacementExecutor {
         guard eventPoster.isAvailable else { return .failedBeforeMutation }
         guard eventPoster.postBackspaces(count: plan.deleteKeyCount),
               eventPoster.postUnicode(plan.replacement),
-              eventPoster.postUnicode(plan.delimiter) else { return .partialFailure }
+              (plan.delimiter.isEmpty || eventPoster.postUnicode(plan.delimiter)) else { return .partialFailure }
         return inputSources.select(plan.targetLayout) ? .completed : .textReplacedLayoutUnavailable
     }
 

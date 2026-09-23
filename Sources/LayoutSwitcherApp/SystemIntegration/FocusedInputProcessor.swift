@@ -3,6 +3,7 @@ import LayoutSwitcherCore
 public struct FocusedInputProcessor<Lexicon: FrequencyLexicon, Rules: UserCorrectionRuleLookingUp> {
     private var pipeline: InputPipeline<Lexicon, Rules>
     private var bufferedFocus: FocusIdentity?
+    private var recentWordFocus: FocusIdentity?
 
     public init(pipeline: InputPipeline<Lexicon, Rules>) {
         self.pipeline = pipeline
@@ -18,14 +19,13 @@ public struct FocusedInputProcessor<Lexicon: FrequencyLexicon, Rules: UserCorrec
             return true
         case .backspace, .reset, .synthetic:
             return false
-        case .commandZ:
-            return true
         }
     }
 
     public mutating func handle(_ event: InputEvent, focus: FocusSnapshot?) -> PipelineOutcome {
         switch event {
         case .character:
+            recentWordFocus = nil
             if let focus {
                 if let bufferedFocus, bufferedFocus != focus.identity {
                     reset()
@@ -41,6 +41,7 @@ public struct FocusedInputProcessor<Lexicon: FrequencyLexicon, Rules: UserCorrec
             if bufferedFocus == nil, delimiter == ".", let focus {
                 bufferedFocus = focus.identity
                 let outcome = pipeline.handle(event, focusIsSafe: true)
+                recentWordFocus = pipeline.hasRecentWord ? focus.identity : nil
                 if !pipeline.hasPendingText { bufferedFocus = nil }
                 return outcome
             }
@@ -49,6 +50,7 @@ public struct FocusedInputProcessor<Lexicon: FrequencyLexicon, Rules: UserCorrec
                 return .passThrough
             }
             let outcome = pipeline.handle(event, focusIsSafe: true)
+            recentWordFocus = pipeline.hasRecentWord ? focus.identity : nil
             if !pipeline.hasPendingText { bufferedFocus = nil }
             return outcome
 
@@ -56,16 +58,30 @@ public struct FocusedInputProcessor<Lexicon: FrequencyLexicon, Rules: UserCorrec
             reset()
             return .passThrough
 
-        case .commandZ:
-            return .passThrough
-
         case .backspace, .synthetic:
+            if event == .backspace { recentWordFocus = nil }
             return pipeline.handle(event, focusIsSafe: bufferedFocus != nil)
         }
     }
 
+    public mutating func forceCorrection(focus: FocusSnapshot?) -> PipelineOutcome {
+        let expectedFocus = pipeline.hasCurrentWord ? bufferedFocus : recentWordFocus
+        guard let focus, let expectedFocus, focus.identity == expectedFocus else {
+            reset()
+            return .passThrough
+        }
+        let outcome = pipeline.forceCorrection(focusIsSafe: true)
+        resetBufferFocus()
+        return outcome
+    }
+
+    private mutating func resetBufferFocus() {
+        bufferedFocus = nil
+        recentWordFocus = nil
+    }
+
     public mutating func reset() {
         pipeline.reset()
-        bufferedFocus = nil
+        resetBufferFocus()
     }
 }

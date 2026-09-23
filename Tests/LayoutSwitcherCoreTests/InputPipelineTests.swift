@@ -185,6 +185,41 @@ final class InputPipelineTests: XCTestCase {
         XCTAssertNil(pipeline.latestDecisionPair)
     }
 
+    func testForceCorrectsCurrentWordWithoutDelimiter() {
+        var pipeline = makePipeline()
+        feed("дштгч", to: &pipeline)
+
+        XCTAssertEqual(
+            pipeline.forceCorrection(focusIsSafe: true),
+            .replace(.init(deleteKeyCount: 5, replacement: "linux", delimiter: "", targetLayout: .english))
+        )
+        XCTAssertEqual(pipeline.latestDecisionPair, .init(source: "дштгч", candidate: "linux"))
+    }
+
+    func testForceCorrectsLastCompletedWordAndKeepsSpace() {
+        var pipeline = makePipeline()
+        feed("qzq", to: &pipeline)
+        XCTAssertEqual(pipeline.handle(.boundary(" "), focusIsSafe: true), .passThrough)
+
+        XCTAssertEqual(
+            pipeline.forceCorrection(focusIsSafe: true),
+            .replace(.init(deleteKeyCount: 4, replacement: "йяй", delimiter: " ", targetLayout: .russian))
+        )
+        XCTAssertEqual(pipeline.forceCorrection(focusIsSafe: true), .passThrough)
+    }
+
+    func testForceDoesNotUseStaleWordAfterNewInputOrUnsafeFocus() {
+        var pipeline = makePipeline()
+        feed("qzq", to: &pipeline)
+        _ = pipeline.handle(.boundary(" "), focusIsSafe: true)
+        XCTAssertEqual(pipeline.forceCorrection(focusIsSafe: false), .passThrough)
+        _ = pipeline.handle(.character("a"), focusIsSafe: true)
+        XCTAssertEqual(
+            pipeline.forceCorrection(focusIsSafe: true),
+            .replace(.init(deleteKeyCount: 1, replacement: "ф", delimiter: "", targetLayout: .russian))
+        )
+    }
+
     private func feed(
         _ text: String,
         to pipeline: inout InputPipeline<PipelineLexicon, NoUserCorrectionRules>

@@ -2,7 +2,6 @@ public enum InputEvent: Equatable, Sendable {
     case character(Character)
     case boundary(String)
     case backspace
-    case commandZ
     case reset
     case synthetic
 }
