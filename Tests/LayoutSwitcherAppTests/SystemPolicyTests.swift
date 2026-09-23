@@ -42,6 +42,20 @@ final class SystemPolicyTests: XCTestCase {
         XCTAssertFalse(policy.allowsApplicationLevelFallback(bundleID: "com.apple.Safari"))
         XCTAssertFalse(policy.allowsApplicationLevelFallback(bundleID: nil))
     }
+
+    func testZoomApplicationFallbackStillRejectsKnownSecureFields() {
+        let policy = FocusSafetyPolicy()
+
+        XCTAssertTrue(policy.allowsApplicationLevelFallback(bundleID: "us.zoom.xos"))
+        XCTAssertFalse(policy.allowsApplicationLevelFallback(bundleID: "us.zoom.zCefWebView"))
+        XCTAssertFalse(policy.isSafe(.init(
+            bundleID: "us.zoom.xos",
+            role: "AXTextField",
+            subrole: "AXSecureTextField",
+            valueIsSettable: true
+        )))
+    }
+
     func testResolverPrefersAppleIDThenLanguageFallback() {
         let s = [InputSourceDescriptor(id: "custom.en", languages: ["en"]), .init(id: "com.apple.keylayout.US", languages: ["en"]), .init(id: "custom.ru", languages: ["ru"])]
         XCTAssertEqual(InputSourceResolver.resolve(.english, from: s)?.id, "com.apple.keylayout.US")

@@ -89,7 +89,7 @@ public struct FocusSafetyPolicy: Sendable {
     }
 
     public func allowsApplicationLevelFallback(bundleID: String?) -> Bool {
-        bundleID == "com.openai.codex"
+        bundleID == "com.openai.codex" || bundleID == "us.zoom.xos"
     }
 }
 
