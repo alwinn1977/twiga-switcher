@@ -61,19 +61,19 @@ public struct FocusDescriptor: Sendable {
 }
 
 public struct FocusSafetyPolicy: Sendable {
-    private let excludedBundleIDs = Set([
-        "com.apple.Terminal",
-        "com.googlecode.iterm2",
-        "com.apple.ScreenSharing",
-        "com.microsoft.rdc.macos",
-        "com.realvnc.vncviewer",
-    ])
+    private let overrides: [String: ApplicationCorrectionMode]
 
-    public init() {}
+    public init(overrides: [String: ApplicationCorrectionMode] = [:]) { self.overrides = overrides }
+
+    private func mode(for bundleID: String) -> ApplicationCorrectionMode {
+        overrides[bundleID]
+            ?? ApplicationRulesStore.builtIns.first(where: { $0.bundleID == bundleID })?.mode
+            ?? .standard
+    }
 
     public func isSafe(_ descriptor: FocusDescriptor) -> Bool {
         guard let bundleID = descriptor.bundleID,
-              !excludedBundleIDs.contains(bundleID),
+              mode(for: bundleID) != .disabled,
               let role = descriptor.role,
               descriptor.subroleLookupSucceeded,
               descriptor.settableLookupSucceeded,
@@ -85,11 +85,12 @@ public struct FocusSafetyPolicy: Sendable {
         if ["AXTextField", "AXTextArea", "AXComboBox"].contains(role) {
             return true
         }
-        return bundleID == "com.openai.codex" && role == "AXGroup"
+        return mode(for: bundleID) == .compatibility && role == "AXGroup"
     }
 
     public func allowsApplicationLevelFallback(bundleID: String?) -> Bool {
-        bundleID == "com.openai.codex" || bundleID == "us.zoom.xos"
+        guard let bundleID else { return false }
+        return mode(for: bundleID) == .compatibility
     }
 }
 
@@ -99,9 +100,11 @@ public protocol FocusSnapshotProviding {
 
 public struct FocusSafetyGuard: FocusSnapshotProviding {
     private let messagingTimeout: Float
+    private let defaults: UserDefaults
 
-    public init(messagingTimeout: Float = 0.05) {
+    public init(messagingTimeout: Float = 0.05, defaults: UserDefaults = .standard) {
         self.messagingTimeout = messagingTimeout
+        self.defaults = defaults
     }
 
     public func snapshot() -> FocusSnapshot? {
@@ -111,7 +114,7 @@ public struct FocusSafetyGuard: FocusSnapshotProviding {
         let axApp = AXUIElementCreateApplication(processID)
         AXUIElementSetMessagingTimeout(axApp, messagingTimeout)
 
-        let policy = FocusSafetyPolicy()
+        let policy = FocusSafetyPolicy(overrides: ApplicationRulesStore(defaults: defaults).overrides)
         var focusedValue: CFTypeRef?
         let focusedResult = AXUIElementCopyAttributeValue(
             axApp,
@@ -132,8 +135,12 @@ public struct FocusSafetyGuard: FocusSnapshotProviding {
         }
 
         let element = unsafeDowncast(focusedValue as AnyObject, to: AXUIElement.self)
-        let role = stringAttribute(kAXRoleAttribute, from: element)
+        // AX timeouts belong to an individual object; the app's timeout does not
+        // propagate to its focused field. Never let that field stall the event tap.
+        AXUIElementSetMessagingTimeout(element, messagingTimeout)
+        guard let role = stringAttribute(kAXRoleAttribute, from: element) else { return nil }
         let subrole = optionalStringAttribute(kAXSubroleAttribute, from: element)
+        guard subrole.succeeded, subrole.value != "AXSecureTextField" else { return nil }
 
         var settable = DarwinBoolean(false)
         let settableResult = AXUIElementIsAttributeSettable(
@@ -157,7 +164,8 @@ public struct FocusSafetyGuard: FocusSnapshotProviding {
 
     private func stringAttribute(_ key: String, from element: AXUIElement) -> String? {
         var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(element, key as CFString, &value) == .success,
+        let result = AXUIElementCopyAttributeValue(element, key as CFString, &value)
+        guard result == .success,
               let string = value as? String else {
             return nil
         }

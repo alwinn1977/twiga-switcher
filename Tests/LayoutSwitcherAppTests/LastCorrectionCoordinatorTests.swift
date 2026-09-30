@@ -4,7 +4,7 @@ import LayoutSwitcherCore
 import XCTest
 
 final class LastCorrectionCoordinatorTests: XCTestCase {
-    func testCommandZWithinLifetimeAndSameFocusBuildsReversalAndLearnsAfterSuccess() throws {
+    func testCommandZWithinLifetimeAndSameFocusLearnsOnlyInMemoryAfterSuccess() throws {
         final class ClockBox: @unchecked Sendable { var value = 100.0 }
         let clock = ClockBox()
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("undo-rules-\(UUID().uuidString)")
@@ -18,8 +18,22 @@ final class LastCorrectionCoordinatorTests: XCTestCase {
         let action = try XCTUnwrap(coordinator.handleCommandZ(currentFocus: focus))
         XCTAssertEqual(action.reversalPlan.deleteKeyCount, 7)
         XCTAssertEqual(action.reversalPlan.replacement, "ghbdtn")
-        try coordinator.complete(action, result: .completed)
+        coordinator.complete(action, result: .completed)
         XCTAssertEqual(store.disposition(source: "ghbdtn", candidate: "привет"), .never)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("rules.json").path))
+        XCTAssertTrue(store.loadSnapshot().rules.isEmpty, "Undo must not create a saved user rule")
+
+        // Saving an unrelated explicit rule must not flush undo history to disk.
+        try store.set(disposition: .always, source: "руддщ", candidate: "hello")
+        let reloaded = try UserRuleStore(fileURL: root.appendingPathComponent("rules.json"))
+        XCTAssertNil(reloaded.disposition(source: "ghbdtn", candidate: "привет"))
+        XCTAssertEqual(reloaded.disposition(source: "руддщ", candidate: "hello"), .always)
+        XCTAssertEqual(store.disposition(source: "ghbdtn", candidate: "привет"), .never)
+
+        // An explicit choice for the same pair takes precedence over session undo.
+        try store.set(disposition: .always, source: "ghbdtn", candidate: "привет")
+        XCTAssertEqual(store.disposition(source: "ghbdtn", candidate: "привет"), .always)
+        XCTAssertFalse(store.preventsEarlyCorrection(source: "ghbd", candidate: "прив"))
     }
 
     func testExpiredFocusMismatchAndInvalidationPassThroughWithoutLearning() throws {
@@ -52,7 +66,7 @@ final class LastCorrectionCoordinatorTests: XCTestCase {
         coordinator.record(.init(source: "a", candidate: "ф", delimiter: " ", focus: focus, originalLayout: .english))
         let action = try XCTUnwrap(coordinator.handleCommandZ(currentFocus: focus))
 
-        try coordinator.complete(action, result: .partialFailure)
+        coordinator.complete(action, result: .partialFailure)
         XCTAssertTrue(store.loadSnapshot().rules.isEmpty)
     }
 }

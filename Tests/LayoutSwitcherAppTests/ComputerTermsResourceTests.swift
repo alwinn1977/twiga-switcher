@@ -32,7 +32,7 @@ final class ComputerTermsResourceTests: XCTestCase {
         )
     }
 
-    func testBundledPipelineRetainsComputerThroughWrongLayoutPeriod() throws {
+    func testBundledPipelineSwitchesComputerBeforePhysicalPeriodKey() throws {
         let base = try BundledLexiconResources.loadBase()
         let terms = try BundledLexiconResources.loadComputerTerms()
         let lexicon = LexiconCatalogSnapshot(
@@ -43,15 +43,12 @@ final class ComputerTermsResourceTests: XCTestCase {
             converter: LayoutConverter(),
             detector: LanguageDetector(lexicon: lexicon, rules: NoUserCorrectionRules())
         )
-        for key in "rjvgm.nth" {
-            let input: InputEvent = key == "." ? .boundary(".") : .character(key)
-            _ = pipeline.handle(input, focusIsSafe: true)
-        }
-        XCTAssertEqual(
-            pipeline.handle(.boundary(" "), focusIsSafe: true),
-            .replace(.init(deleteKeyCount: 9, replacement: "компьютер", delimiter: " ", targetLayout: .russian)),
-            "prefix match=\(lexicon.lookup("компь", language: .russian).isStrictPrefix)"
-        )
+        for key in "rjv" { _ = pipeline.handle(.character(key), focusIsSafe: true) }
+        XCTAssertEqual(pipeline.handle(.character("g"), focusIsSafe: true), .replace(.init(
+            deleteKeyCount: 3, replacement: "комп", delimiter: "", targetLayout: .russian
+        )))
+        for key in "ьютер" { XCTAssertEqual(pipeline.handle(.character(key), focusIsSafe: true), .passThrough) }
+        XCTAssertEqual(pipeline.handle(.boundary(" "), focusIsSafe: true), .passThrough)
     }
 
     func testBundledFrequencyDecisionCorrectsCommonInflectedVerb() throws {
@@ -99,14 +96,15 @@ final class ComputerTermsResourceTests: XCTestCase {
             converter: LayoutConverter(),
             detector: LanguageDetector(lexicon: lexicon, rules: NoUserCorrectionRules())
         )
-        for key in ",.l;tn" {
+        for key in ",.l;" {
             let input: InputEvent = ",.;".contains(key) ? .boundary(String(key)) : .character(key)
-            _ = pipeline.handle(input, focusIsSafe: true)
+            XCTAssertEqual(pipeline.handle(input, focusIsSafe: true), .passThrough)
         }
-        XCTAssertEqual(
-            pipeline.handle(.boundary(" "), focusIsSafe: true),
-            .replace(.init(deleteKeyCount: 6, replacement: "бюджет", delimiter: " ", targetLayout: .russian))
-        )
+        XCTAssertEqual(pipeline.handle(.character("t"), focusIsSafe: true), .replace(.init(
+            deleteKeyCount: 4, replacement: "бюдже", delimiter: "", targetLayout: .russian
+        )))
+        XCTAssertEqual(pipeline.handle(.character("т"), focusIsSafe: true), .passThrough)
+        XCTAssertEqual(pipeline.handle(.boundary(" "), focusIsSafe: true), .passThrough)
     }
 
     func testBundledComputerTermsRecognizesMutexAndCorrectsPhysicalKeys() throws {

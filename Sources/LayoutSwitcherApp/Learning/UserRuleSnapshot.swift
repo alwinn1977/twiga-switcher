@@ -28,7 +28,24 @@ public final class UserRuleSnapshot: @unchecked Sendable, UserCorrectionRuleLook
     }
 
     public func disposition(source: String, candidate: String) -> UserCorrectionDisposition? {
-        let id = TermNormalizer.normalize(source) + "\u{0}" + TermNormalizer.normalize(candidate)
-        return byID[id]
+        let source = TermNormalizer.normalize(source)
+        let candidate = TermNormalizer.normalize(candidate)
+        if let exact = byID[source + "\u{0}" + candidate] { return exact }
+        // Undoing an incomplete word must not reapply the same correction at the next space.
+        return rules.contains {
+            $0.disposition == .never && !$0.source.isEmpty && !$0.candidate.isEmpty
+                && source.hasPrefix($0.source) && candidate.hasPrefix($0.candidate)
+        } ? .never : nil
+    }
+
+    public func preventsEarlyCorrection(source: String, candidate: String) -> Bool {
+        let source = TermNormalizer.normalize(source)
+        let candidate = TermNormalizer.normalize(candidate)
+        return rules.contains {
+            $0.disposition == .never && (
+                ($0.source.hasPrefix(source) && $0.candidate.hasPrefix(candidate)) ||
+                (source.hasPrefix($0.source) && candidate.hasPrefix($0.candidate))
+            )
+        }
     }
 }

@@ -23,12 +23,12 @@ final class InterfaceLanguageTests: XCTestCase {
             XCTAssertFalse(key.localized(.russian).isEmpty, String(describing: key))
             XCTAssertNotEqual(key.localized(.russian), key.localized(.english), String(describing: key))
         }
-        XCTAssertEqual(InterfaceText.enableAutomaticCorrection.localized(.russian), "Включить автокоррекцию")
+        XCTAssertEqual(InterfaceText.enableAutomaticCorrection.localized(.russian), "Включить автопереключение")
         XCTAssertEqual(InterfaceText.enableAutomaticCorrection.localized(.english), "Enable Automatic Correction")
     }
 
     func testStatusAndDynamicMenuLabelsUseSelectedLanguage() {
-        XCTAssertEqual(AppState.active.title(in: .russian), "Автокоррекция включена")
+        XCTAssertEqual(AppState.active.title(in: .russian), "Автопереключение включено")
         XCTAssertEqual(AppState.paused.title(in: .english), "Automatic correction is paused")
         XCTAssertEqual(InterfaceText.alwaysCorrect.localized(.russian, "linux", "дштгч"),
                        "Всегда исправлять «linux» → «дштгч»")

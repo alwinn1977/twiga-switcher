@@ -16,14 +16,14 @@ final class MixedTypingIntegrationTests: XCTestCase {
         XCTAssertTrue(trace.editorText.utf8.elementsEqual(MixedTypingCorpus.expected.utf8))
         XCTAssertEqual(trace.manualSelections.count, 0)
         XCTAssertFalse(trace.automaticSelections.isEmpty)
-        XCTAssertEqual(trace.words.first?.raw, "rjvgm.nth")
+        XCTAssertEqual(trace.words.first?.raw, "rjvgьютер")
         XCTAssertEqual(trace.words.first?.layoutAfter, .russian)
         XCTAssertTrue(trace.corrections.contains { $0.layoutBefore == .english && $0.layoutAfter == .russian })
         XCTAssertTrue(trace.corrections.contains { $0.layoutBefore == .russian && $0.layoutAfter == .english })
         for (intended, raw) in [
-            ("компьютер", "rjvgm.nth"), ("меню", "vty."),
-            ("люди", "k.lb"), ("бюджет", ",.l;tn"),
-            ("любой", "k.,jq"), ("ключ", "rk.x"),
+            ("компьютер", "rjvgьютер"), ("меню", "vty."),
+            ("люди", "k.lb"), ("бюджет", ",.l;tт"),
+            ("любой", "k.,jй"), ("ключ", "rk.x"),
             ("мьютекс", "vm.ntrc"), ("плюс", "gk.c")
         ] {
             let word = trace.words.first { $0.intended == intended }

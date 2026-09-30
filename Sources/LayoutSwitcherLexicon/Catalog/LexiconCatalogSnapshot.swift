@@ -35,6 +35,12 @@ public final class LexiconCatalogSnapshot: @unchecked Sendable, FrequencyLexicon
         )
     }
 
+    public func hasCompletion(for prefix: String, language: Language, minimumScore: Int) -> Bool {
+        (baseLexicons + subjectLexicons).contains {
+            $0.hasCompletion(for: prefix, language: language, minimumScore: minimumScore)
+        }
+    }
+
     private func aggregate(
         _ text: String,
         language: Language,

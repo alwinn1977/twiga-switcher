@@ -19,6 +19,12 @@ public struct PhraseBuffer: Sendable {
 
     public var hasPendingText: Bool { !text.isEmpty && !isBlocked }
     public var currentWord: BufferedCandidate? { makeCandidates().last }
+    var unfinishedWord: BufferedCandidate? { text.contains(" ") ? nil : currentWord }
+
+    mutating func replaceUnfinishedWord(with replacement: String) {
+        text = replacement
+        script = detectedScript(in: text)
+    }
 
     public init(maxTokens: Int = 8, maxScalars: Int = 128) {
         precondition(maxTokens > 0 && maxScalars > 0)
@@ -28,6 +34,8 @@ public struct PhraseBuffer: Sendable {
 
     public mutating func handle(_ event: InputEvent) -> PhraseBufferResult {
         switch event {
+        case let .punctuation(text, _, _):
+            return handle(.boundary(text))
         case let .character(character):
             append(character)
             return .buffered

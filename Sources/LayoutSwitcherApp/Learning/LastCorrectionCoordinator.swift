@@ -84,8 +84,8 @@ public final class LastCorrectionCoordinator: @unchecked Sendable {
         }
     }
 
-    public func complete(_ action: UndoLearningAction, result: ReplacementExecutionResult) throws {
+    public func complete(_ action: UndoLearningAction, result: ReplacementExecutionResult) {
         guard result == .completed else { return }
-        try ruleStore.set(disposition: .never, source: action.source, candidate: action.candidate)
+        ruleStore.suppressForSession(source: action.source, candidate: action.candidate)
     }
 }

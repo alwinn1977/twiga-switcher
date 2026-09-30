@@ -24,4 +24,8 @@ public final class LexiconCatalog: @unchecked Sendable, FrequencyLexicon {
     public func lookup(_ text: String, language: Language) -> LexiconMatch {
         snapshot().lookup(text, language: language)
     }
+
+    public func hasCompletion(for prefix: String, language: Language, minimumScore: Int) -> Bool {
+        snapshot().hasCompletion(for: prefix, language: language, minimumScore: minimumScore)
+    }
 }

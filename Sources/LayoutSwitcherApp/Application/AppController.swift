@@ -6,16 +6,24 @@ import LayoutSwitcherCore
 public final class AppController: ObservableObject {
     @Published public private(set) var state: AppState = .paused
     @Published public private(set) var isEnabled: Bool
+    @Published public private(set) var pendingRuleSuggestion: CorrectionPair?
+    @Published public private(set) var missingLayouts: [KeyboardLayout] = []
+    private let presentDialogs: Bool
+    private var ruleDialog: NSPanel?
+    private var layoutDialog: NSPanel?
     @Published public private(set) var latestDecisionPair: CorrectionPair?
     @Published public private(set) var hotkeys: HotkeyConfiguration
     @Published public private(set) var soundEnabled: Bool
     @Published public private(set) var shortcutError: String?
     @Published public private(set) var interfaceLanguage: InterfaceLanguage
+    @Published public private(set) var permissionSnapshot: PermissionSnapshot = .init(accessibility: false, inputMonitoring: false)
+    @Published public private(set) var applicationRules: [ApplicationRule] = []
 
     private let permissions: any PermissionManaging
     private let monitor: any KeyboardMonitoring
     private let hotkeyStore: HotkeyStore
     private let defaults: UserDefaults
+    private let applicationRulesStore: ApplicationRulesStore
     private var lastError: String?
     private var activationObserver: NSObjectProtocol?
 
@@ -24,12 +32,16 @@ public final class AppController: ObservableObject {
         monitor: any KeyboardMonitoring = KeyboardMonitor(),
         initialEnabled: Bool? = nil,
         hotkeyStore: HotkeyStore = HotkeyStore(),
-        defaults: UserDefaults = .standard
+        defaults: UserDefaults = .standard,
+        presentDialogs: Bool = false
     ) {
+        self.presentDialogs = presentDialogs
         self.permissions = permissions
         self.monitor = monitor
         self.hotkeyStore = hotkeyStore
         self.defaults = defaults
+        self.applicationRulesStore = ApplicationRulesStore(defaults: defaults)
+        self.applicationRules = applicationRulesStore.rules
         self.hotkeys = hotkeyStore.configuration
         self.soundEnabled = defaults.object(forKey: "layoutSwitchSoundEnabled") as? Bool ?? true
         self.interfaceLanguage = InterfaceLanguage(rawValue: defaults.string(forKey: "interfaceLanguage") ?? "") ?? .system
@@ -49,7 +61,13 @@ public final class AppController: ObservableObject {
             }
         }
         monitor.onLatestDecision = { [weak self] pair in
-            MainActor.assumeIsolated { self?.latestDecisionPair = pair }
+            MainActor.assumeIsolated {
+                self?.latestDecisionPair = pair
+                if let pair { self?.offerRule(pair) }
+            }
+        }
+        monitor.onInputSourcesChanged = { [weak self] in
+            MainActor.assumeIsolated { self?.updateInputSourceStatus() }
         }
         activationObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification,
@@ -61,6 +79,59 @@ public final class AppController: ObservableObject {
         refresh()
     }
 
+    public var inputSourceError: String? {
+        guard !missingLayouts.isEmpty else { return nil }
+        return missingLayouts.map { $0 == .russian
+            ? InterfaceText.russianInputSourceUnavailable.localized(.english)
+            : InterfaceText.englishInputSourceUnavailable.localized(.english) }.joined(separator: "\n")
+    }
+
+    private func updateInputSourceStatus() {
+        let previous = missingLayouts
+        missingLayouts = monitor.missingLayouts
+        state = .resolve(enabled: isEnabled, permissions: permissionSnapshot,
+                         monitorRunning: monitor.isRunning, error: lastError ?? inputSourceError)
+        guard presentDialogs, previous != missingLayouts else { return }
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.layoutDialog?.close()
+            self.layoutDialog = nil
+            guard let message = self.inputSourceError else { return }
+            self.layoutDialog = SuggestionDialogs.missingLayouts(message: InterfaceText.diagnostic(message, in: self.displayLanguage), language: self.displayLanguage)
+        }
+    }
+
+    private func offerRule(_ pair: CorrectionPair) {
+        guard pendingRuleSuggestion != pair else { return }
+        pendingRuleSuggestion = pair
+        guard presentDialogs else { return }
+        // Present outside the event-tap callback; the immutable pair survives typing,
+        // mouse events and activation of the dialog itself.
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.pendingRuleSuggestion == pair else { return }
+            self.ruleDialog?.close()
+            self.ruleDialog = SuggestionDialogs.rule(pair: pair, language: self.displayLanguage) { [weak self] disposition in
+                guard let self, self.pendingRuleSuggestion == pair else { return }
+                if let disposition { self.saveSuggestedRule(disposition) }
+                else { self.dismissRuleSuggestion() }
+            }
+        }
+    }
+
+    public func dismissRuleSuggestion() {
+        pendingRuleSuggestion = nil
+        ruleDialog?.close()
+        ruleDialog = nil
+    }
+
+    public func saveSuggestedRule(_ disposition: UserCorrectionDisposition) {
+        guard let pair = pendingRuleSuggestion else { return }
+        do {
+            try monitor.setRule(disposition, for: pair)
+            dismissRuleSuggestion()
+        } catch { handleMonitorDiagnostic("Unable to save learned rule") }
+    }
+
     public func setEnabled(_ enabled: Bool) {
         isEnabled = enabled
         defaults.set(enabled, forKey: "automaticCorrectionEnabled")
@@ -70,6 +141,7 @@ public final class AppController: ObservableObject {
 
     public func refresh() {
         let snapshot = permissions.snapshot()
+        permissionSnapshot = snapshot
         if isEnabled && snapshot == .granted && lastError == nil {
             if !monitor.isRunning && !monitor.start() {
                 lastError = monitor.startError ?? "Unable to start keyboard monitor"
@@ -77,11 +149,26 @@ public final class AppController: ObservableObject {
         } else if !isEnabled || snapshot != .granted {
             monitor.stop()
         }
-        state = .resolve(enabled: isEnabled, permissions: snapshot, monitorRunning: monitor.isRunning, error: lastError)
+        state = .resolve(enabled: isEnabled, permissions: snapshot, monitorRunning: monitor.isRunning, error: lastError ?? inputSourceError)
     }
 
-    public func requestPermissions() { permissions.request(); refresh() }
-    public func openPrivacySettings() { permissions.openSettings() }
+    public func requestPermission(_ kind: PermissionKind) { permissions.request(kind); refresh() }
+    public func openPermissionSettings(_ kind: PermissionKind) { permissions.openSettings(kind) }
+
+    public func setApplicationMode(_ mode: ApplicationCorrectionMode, for bundleID: String) {
+        applicationRulesStore.setMode(mode, for: bundleID)
+        applicationRules = applicationRulesStore.rules
+    }
+
+    public func addApplication(bundleID: String, name: String) {
+        applicationRulesStore.addApplication(bundleID: bundleID, name: name)
+        applicationRules = applicationRulesStore.rules
+    }
+
+    public func removeApplication(bundleID: String) {
+        applicationRulesStore.removeApplication(bundleID: bundleID)
+        applicationRules = applicationRulesStore.rules
+    }
 
     public func restartMonitor() {
         monitor.stop()

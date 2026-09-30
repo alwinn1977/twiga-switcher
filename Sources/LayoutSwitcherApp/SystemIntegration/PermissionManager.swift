@@ -8,10 +8,15 @@ public struct PermissionSnapshot: Equatable, Sendable {
     public static let granted = Self(accessibility: true, inputMonitoring: true)
 }
 
+public enum PermissionKind: Sendable {
+    case accessibility
+    case inputMonitoring
+}
+
 public protocol PermissionManaging {
     func snapshot() -> PermissionSnapshot
-    func request()
-    func openSettings()
+    func request(_ kind: PermissionKind)
+    func openSettings(_ kind: PermissionKind)
 }
 
 public struct PermissionManager: PermissionManaging {
@@ -24,15 +29,18 @@ public struct PermissionManager: PermissionManaging {
         )
     }
 
-    public func request() {
-        _ = AXIsProcessTrustedWithOptions([
-            "AXTrustedCheckOptionPrompt": true,
-        ] as CFDictionary)
-        _ = CGRequestListenEventAccess()
+    public func request(_ kind: PermissionKind) {
+        switch kind {
+        case .accessibility:
+            _ = AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt": true] as CFDictionary)
+        case .inputMonitoring:
+            _ = CGRequestListenEventAccess()
+        }
     }
 
-    public func openSettings() {
-        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") else {
+    public func openSettings(_ kind: PermissionKind) {
+        let pane = kind == .accessibility ? "Privacy_Accessibility" : "Privacy_ListenEvent"
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(pane)") else {
             return
         }
         NSWorkspace.shared.open(url)

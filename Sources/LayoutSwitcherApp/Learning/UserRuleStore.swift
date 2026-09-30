@@ -27,6 +27,7 @@ public final class UserRuleStore: @unchecked Sendable, UserCorrectionRuleLooking
     private let beforeReplace: BeforeReplace
     private let lock = NSLock()
     private var current: UserRuleSnapshot
+    private var sessionRules = UserRuleSnapshot(rules: [])
 
     public init(
         fileURL: URL,
@@ -63,7 +64,26 @@ public final class UserRuleStore: @unchecked Sendable, UserCorrectionRuleLooking
     }
 
     public func disposition(source: String, candidate: String) -> UserCorrectionDisposition? {
-        loadSnapshot().disposition(source: source, candidate: candidate)
+        lock.withLock {
+            sessionRules.disposition(source: source, candidate: candidate)
+                ?? current.disposition(source: source, candidate: candidate)
+        }
+    }
+
+    public func preventsEarlyCorrection(source: String, candidate: String) -> Bool {
+        lock.withLock {
+            sessionRules.preventsEarlyCorrection(source: source, candidate: candidate)
+                || current.preventsEarlyCorrection(source: source, candidate: candidate)
+        }
+    }
+
+    // Undo is not consent to store typed words. Keep its suppression in memory,
+    // separate from explicit rules so a later save cannot persist undo history.
+    public func suppressForSession(source: String, candidate: String) {
+        let rule = UserRule(source: source, candidate: candidate, disposition: .never)
+        lock.withLock {
+            sessionRules = UserRuleSnapshot(rules: sessionRules.rules.filter { $0.id != rule.id } + [rule])
+        }
     }
 
     public func set(
@@ -72,27 +92,34 @@ public final class UserRuleStore: @unchecked Sendable, UserCorrectionRuleLooking
         candidate: String
     ) throws {
         let newRule = UserRule(source: source, candidate: candidate, disposition: disposition)
-        try mutate { rules in
+        try mutate(removingSessionRuleID: newRule.id) { rules in
             rules.removeAll { $0.id == newRule.id }
             rules.append(newRule)
         }
     }
 
     public func remove(_ rule: UserRule) throws {
-        try mutate { $0.removeAll { $0.id == rule.id } }
+        try mutate(removingSessionRuleID: rule.id) { $0.removeAll { $0.id == rule.id } }
     }
 
     public func removeAll() throws {
-        try mutate { $0.removeAll() }
+        try mutate(clearSessionRules: true) { $0.removeAll() }
     }
 
-    private func mutate(_ mutation: (inout [UserRule]) -> Void) throws {
+    private func mutate(
+        removingSessionRuleID: String? = nil,
+        clearSessionRules: Bool = false,
+        _ mutation: (inout [UserRule]) -> Void
+    ) throws {
         try lock.withLock {
             var rules = current.rules
             mutation(&rules)
             let next = UserRuleSnapshot(rules: rules)
             try persist(next)
             current = next
+            sessionRules = UserRuleSnapshot(rules: clearSessionRules ? [] : sessionRules.rules.filter {
+                $0.id != removingSessionRuleID
+            })
         }
     }
 

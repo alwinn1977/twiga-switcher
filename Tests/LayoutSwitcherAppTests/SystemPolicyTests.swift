@@ -3,6 +3,37 @@ import LayoutSwitcherCore
 @testable import LayoutSwitcherApp
 
 final class SystemPolicyTests: XCTestCase {
+    func testApplicationModesOverrideBuiltInRulesButNeverPermitSecureFields() {
+        let policy = FocusSafetyPolicy(overrides: [
+            "com.apple.Terminal": .standard,
+            "com.openai.codex": .disabled,
+            "com.example.Editor": .compatibility,
+        ])
+        XCTAssertTrue(policy.isSafe(.init(bundleID: "com.apple.Terminal", role: "AXTextArea", subrole: nil, valueIsSettable: true)))
+        XCTAssertFalse(policy.isSafe(.init(bundleID: "com.openai.codex", role: "AXTextArea", subrole: nil, valueIsSettable: true)))
+        XCTAssertTrue(policy.isSafe(.init(bundleID: "com.example.Editor", role: "AXGroup", subrole: nil, valueIsSettable: true)))
+        XCTAssertTrue(policy.allowsApplicationLevelFallback(bundleID: "com.example.Editor"))
+        XCTAssertFalse(policy.isSafe(.init(bundleID: "com.example.Editor", role: "AXTextField", subrole: "AXSecureTextField", valueIsSettable: true)))
+    }
+
+    func testApplicationSettingsPersistChangesAndKeepBuiltInRulesVisible() throws {
+        let suite = "ApplicationRules-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let store = ApplicationRulesStore(defaults: defaults)
+        XCTAssertEqual(store.mode(for: "com.apple.Terminal"), .disabled)
+        XCTAssertEqual(store.mode(for: "us.zoom.xos"), .compatibility)
+        store.setMode(.standard, for: "com.apple.Terminal")
+        store.addApplication(bundleID: "com.example.Editor", name: "Editor")
+        store.setMode(.disabled, for: "com.example.Editor")
+        let restored = ApplicationRulesStore(defaults: defaults)
+        XCTAssertEqual(restored.mode(for: "com.apple.Terminal"), .standard)
+        XCTAssertEqual(restored.mode(for: "com.example.Editor"), .disabled)
+        XCTAssertTrue(restored.rules.contains { $0.bundleID == "com.example.Editor" && $0.name == "Editor" })
+        restored.removeApplication(bundleID: "com.example.Editor")
+        XCTAssertFalse(restored.rules.contains { $0.bundleID == "com.example.Editor" })
+    }
+
     func testFocusPolicyFailsClosed() {
         let p = FocusSafetyPolicy()
         XCTAssertFalse(p.isSafe(.init(bundleID: "com.apple.Terminal", role: "AXTextArea", subrole: nil, valueIsSettable: true)))
@@ -54,6 +85,22 @@ final class SystemPolicyTests: XCTestCase {
             subrole: "AXSecureTextField",
             valueIsSettable: true
         )))
+    }
+
+    func testResolverDoesNotTreatSecondaryLanguageSupportAsRussianOrAmerican() {
+        let sources = [InputSourceDescriptor(id: "com.apple.keylayout.Bulgarian", languages: ["bg", "ru"]),
+                       InputSourceDescriptor(id: "com.apple.keylayout.French", languages: ["fr", "en"])]
+        XCTAssertNil(InputSourceResolver.resolve(.russian, from: sources))
+        XCTAssertNil(InputSourceResolver.resolve(.english, from: sources))
+    }
+
+    func testKnownRussianAndUSVariantsResolveWithoutLanguageMetadata() {
+        for id in ["Russian", "RussianWin"] {
+            XCTAssertNotNil(InputSourceResolver.resolve(.russian, from: [.init(id: "com.apple.keylayout." + id, languages: [])]))
+        }
+        for id in ["US", "ABC", "USExtended", "USInternational-PC", "British", "British-PC", "Canadian", "Irish"] {
+            XCTAssertNotNil(InputSourceResolver.resolve(.english, from: [.init(id: "com.apple.keylayout." + id, languages: [])]))
+        }
     }
 
     func testResolverPrefersAppleIDThenLanguageFallback() {

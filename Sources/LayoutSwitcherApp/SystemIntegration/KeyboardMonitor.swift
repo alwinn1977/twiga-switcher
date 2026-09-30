@@ -1,4 +1,5 @@
 import AppKit
+import Carbon
 import CoreGraphics
 import LayoutSwitcherCore
 import LayoutSwitcherLexicon
@@ -16,6 +17,8 @@ public protocol KeyboardMonitoring: AnyObject, Sendable {
     var onStopped: ((String) -> Void)? { get set }
     var onDiagnostic: ((String) -> Void)? { get set }
     var onLatestDecision: ((CorrectionPair?) -> Void)? { get set }
+    var onInputSourcesChanged: (() -> Void)? { get set }
+    var missingLayouts: [KeyboardLayout] { get }
     func start() -> Bool
     func stop()
     func setRule(_ disposition: UserCorrectionDisposition, for pair: CorrectionPair) throws
@@ -26,6 +29,8 @@ public protocol KeyboardMonitoring: AnyObject, Sendable {
 
 public extension KeyboardMonitoring {
     var startError: String? { nil }
+    var missingLayouts: [KeyboardLayout] { [] }
+    var onInputSourcesChanged: (() -> Void)? { get { nil } set {} }
     func setRule(_ disposition: UserCorrectionDisposition, for pair: CorrectionPair) throws {}
     func setHotkeys(_ hotkeys: HotkeyConfiguration) {}
     func setSoundEnabled(_ enabled: Bool) {}
@@ -40,10 +45,14 @@ public final class KeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
     private let normalizer = KeyboardEventNormalizer(syntheticMarker: EventPoster.syntheticMarker)
     private let focusProvider: any FocusSnapshotProviding
     private let executor: ReplacementExecutor
+    private let inputSources: InputSourceManager
+    private var inputSourceObservers: [NSObjectProtocol] = []
+    private var healthTimer: Timer?
+    public var missingLayouts: [KeyboardLayout] { inputSources.missingLayouts }
+    public var onInputSourcesChanged: (() -> Void)?
     private let sound: any LayoutSwitchSoundPlaying
     private var hotkeys: HotkeyConfiguration
     private var soundEnabled: Bool
-    private var health = TapHealth(maximumReenableAttempts: 1)
     private var tap: CFMachPort?
     private var source: CFRunLoopSource?
     private var activationObserver: NSObjectProtocol?
@@ -57,10 +66,8 @@ public final class KeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
         lexiconService: LexiconService = LexiconService(),
         ruleStore: UserRuleStore? = nil,
         focusProvider: any FocusSnapshotProviding = FocusSafetyGuard(),
-        executor: ReplacementExecutor = ReplacementExecutor(
-            eventPoster: EventPoster(),
-            inputSources: InputSourceManager()
-        ),
+        executor: ReplacementExecutor? = nil,
+        inputSources: InputSourceManager = InputSourceManager(),
         hotkeys: HotkeyConfiguration = HotkeyStore().configuration,
         sound: any LayoutSwitchSoundPlaying = SystemLayoutSwitchSound(),
         soundEnabled: Bool = UserDefaults.standard.object(forKey: "layoutSwitchSoundEnabled") as? Bool ?? true
@@ -77,7 +84,8 @@ public final class KeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
             )
         ))
         self.focusProvider = focusProvider
-        self.executor = executor
+        self.inputSources = inputSources
+        self.executor = executor ?? ReplacementExecutor(eventPoster: EventPoster(), inputSources: inputSources)
         self.hotkeys = hotkeys
         self.sound = sound
         self.soundEnabled = soundEnabled
@@ -85,6 +93,7 @@ public final class KeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
 
     public func start() -> Bool {
         guard tap == nil else { return true }
+        refreshInputSources()
         do {
             try lexiconService.start()
             startError = nil
@@ -95,7 +104,6 @@ public final class KeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
         for diagnostic in lexiconService.diagnostics where !diagnostic.isFatal {
             onDiagnostic?(diagnostic.message)
         }
-        health = TapHealth(maximumReenableAttempts: 1)
         let mask = [CGEventType.keyDown, .flagsChanged, .leftMouseDown, .rightMouseDown, .otherMouseDown]
             .reduce(CGEventMask(0)) { $0 | (CGEventMask(1) << $1.rawValue) }
         guard let newTap = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .headInsertEventTap, options: .defaultTap, eventsOfInterest: mask, callback: layoutSwitcherTapCallback, userInfo: Unmanaged.passUnretained(self).toOpaque()) else { return false }
@@ -107,10 +115,57 @@ public final class KeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
             self?.correctionCoordinator.invalidate()
             self?.processor.reset()
         }
+        for name in [kTISNotifySelectedKeyboardInputSourceChanged!, kTISNotifyEnabledKeyboardInputSourcesChanged!] {
+            inputSourceObservers.append(DistributedNotificationCenter.default().addObserver(
+                forName: Notification.Name(name as String), object: nil, queue: .main
+            ) { [weak self] _ in self?.refreshInputSources() })
+        }
+        // Secure Input, sleep, or a busy target app can disable a tap without a
+        // subsequent physical event. Recovery must not depend on manual switching.
+        let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
+            self?.checkHealth()
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        healthTimer = timer
         return true
     }
 
+    func checkHealth() {
+        // A healthy event tap does not imply a healthy cached input source.
+        synchronizeInputSources(retryUnavailable: true)
+        if let tap, !CGEvent.tapIsEnabled(tap: tap) {
+            resetBuffer()
+            correctionCoordinator.invalidate()
+            CGEvent.tapEnable(tap: tap, enable: true)
+        }
+    }
+
+    func refreshInputSources() {
+        if inputSources.refresh() {
+            applyInputSourceChange()
+        }
+        onInputSourcesChanged?()
+    }
+
+    private func synchronizeInputSources(retryUnavailable: Bool = false) {
+        if inputSources.refreshIfNeeded(retryUnavailable: retryUnavailable) {
+            applyInputSourceChange()
+            onInputSourcesChanged?()
+        }
+    }
+
+    private func applyInputSourceChange() {
+        correctionCoordinator.invalidate()
+        if let tables = inputSources.tables { processor.updateConverter(tables.converter) }
+        else { processor.reset() }
+        onLatestDecision?(nil)
+    }
+
     public func stop() {
+        healthTimer?.invalidate()
+        healthTimer = nil
+        for observer in inputSourceObservers { DistributedNotificationCenter.default().removeObserver(observer) }
+        inputSourceObservers.removeAll()
         if let source { CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes) }
         if let tap { CFMachPortInvalidate(tap) }
         if let activationObserver { NSWorkspace.shared.notificationCenter.removeObserver(activationObserver) }
@@ -133,11 +188,10 @@ public final class KeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
     func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
             resetBuffer()
-            if health.handleDisable() == .reenable, let tap { CGEvent.tapEnable(tap: tap, enable: true) }
-            else { stop(); onStopped?("Event monitor stopped") }
+            correctionCoordinator.invalidate()
+            if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
             return Unmanaged.passUnretained(event)
         }
-        health.recordHealthyEvent()
         if type == .leftMouseDown || type == .rightMouseDown || type == .otherMouseDown {
             correctionCoordinator.invalidate()
             processor.reset()
@@ -147,8 +201,15 @@ public final class KeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
             return Unmanaged.passUnretained(event)
         }
         guard type == .keyDown else { return Unmanaged.passUnretained(event) }
-        let keyCode = CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
         let marker = event.getIntegerValueField(.eventSourceUserData)
+        guard marker != EventPoster.syntheticMarker else { return Unmanaged.passUnretained(event) }
+        let isPhysical = event.getIntegerValueField(.eventSourceUnixProcessID) == 0
+        if isRunning { synchronizeInputSources() }
+        if isRunning && (!missingLayouts.isEmpty || inputSources.currentLayout == nil) {
+            processor.reset()
+            return Unmanaged.passUnretained(event)
+        }
+        let keyCode = CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
         if marker != EventPoster.syntheticMarker,
            let action = hotkeys.action(keyCode: keyCode, flags: event.flags),
            NSWorkspace.shared.frontmostApplication?.processIdentifier != getpid() {
@@ -157,10 +218,14 @@ public final class KeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
         }
         var length = 0; var units = [UniChar](repeating: 0, count: 8)
         event.keyboardGetUnicodeString(maxStringLength: units.count, actualStringLength: &length, unicodeString: &units)
-        let text = String(utf16CodeUnits: units, count: length)
+        let text = String(utf16CodeUnits: units, count: min(length, units.count))
+        // Events posted by other applications may intentionally carry Unicode
+        // unrelated to their virtual keycode (often zero). Do not reinterpret it.
+        let physicalLayout = isPhysical ? inputSources.currentLayout : nil
         let raw = RawKeyEvent(text: text, keyCode: keyCode, flags: event.flags, marker: marker)
-        let input = normalizer.normalize(raw)
-        let focus = processor.needsFocusSnapshot(for: input) ? focusProvider.snapshot() : nil
+        let input = normalizer.normalize(raw, tables: inputSources.tables, currentLayout: physicalLayout)
+        let needsFocus = processor.needsFocusSnapshot(for: input)
+        let focus = needsFocus ? focusProvider.snapshot() : nil
         if input != .synthetic {
             onLatestDecision?(nil)
         }
@@ -187,13 +252,17 @@ public final class KeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
                 }
                 return nil
             case .textReplacedLayoutUnavailable:
+                processor.reset()
+                correctionCoordinator.invalidate()
                 onDiagnostic?("Matching input source is unavailable")
                 return nil
             case .failedBeforeMutation:
+                processor.reset()
                 correctionCoordinator.invalidate()
                 onDiagnostic?("Unable to post replacement events")
                 return Unmanaged.passUnretained(event)
             case .partialFailure:
+                processor.reset()
                 correctionCoordinator.invalidate()
                 onDiagnostic?("Replacement was interrupted")
                 return nil
@@ -210,11 +279,7 @@ public final class KeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
                 return Unmanaged.passUnretained(event)
             }
             let result = executor.reverse(undo.reversalPlan)
-            do {
-                try correctionCoordinator.complete(undo, result: result)
-            } catch {
-                onDiagnostic?("Unable to save learned rule")
-            }
+            correctionCoordinator.complete(undo, result: result)
             switch result {
             case .completed:
                 processor.reset()
@@ -224,6 +289,7 @@ public final class KeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
             case .failedBeforeMutation:
                 return Unmanaged.passUnretained(event)
             case .textReplacedLayoutUnavailable, .partialFailure:
+                processor.reset()
                 onDiagnostic?("Undo replacement was interrupted")
                 return nil
             }
@@ -250,12 +316,15 @@ public final class KeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
                 }
                 return nil
             case .failedBeforeMutation:
+                processor.reset()
                 onDiagnostic?("Unable to post replacement events")
                 return Unmanaged.passUnretained(event)
             case .textReplacedLayoutUnavailable:
+                processor.reset()
                 onDiagnostic?("Matching input source is unavailable")
                 return nil
             case .partialFailure:
+                processor.reset()
                 onDiagnostic?("Replacement was interrupted")
                 return nil
             }

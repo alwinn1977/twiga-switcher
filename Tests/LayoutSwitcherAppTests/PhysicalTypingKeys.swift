@@ -23,6 +23,19 @@ enum PhysicalTypingKeys {
         if intended == " " { return .init(keyCode: 49, flags: [], expectedLanguage: language) }
         if intended == "\n" { return .init(keyCode: 36, flags: [], expectedLanguage: language) }
         if intended == "+" { return .init(keyCode: 24, flags: .maskShift, expectedLanguage: language) }
+        let shiftedSigns: [(CGKeyCode, Character, Character)] = [
+            (18, "!", "!"), (21, "$", ";"), (22, "^", ":"),
+            (26, "&", "?"), (25, "(", "("), (29, ")", ")")
+        ]
+        if let sign = shiftedSigns.first(where: { (language == .english ? $0.1 : $0.2) == intended }) {
+            return .init(keyCode: sign.0, flags: .maskShift, expectedLanguage: language)
+        }
+        if language == .english && intended == "?" {
+            return .init(keyCode: 44, flags: .maskShift, expectedLanguage: language)
+        }
+        if language == .english && intended == ":" {
+            return .init(keyCode: 41, flags: .maskShift, expectedLanguage: language)
+        }
         if language == .russian && intended == "." {
             return .init(keyCode: 44, flags: [], expectedLanguage: language)
         }
@@ -41,6 +54,18 @@ enum PhysicalTypingKeys {
         if stroke.keyCode == 49 { return " " }
         if stroke.keyCode == 36 { return "\n" }
         if stroke.keyCode == 24 && stroke.flags.contains(.maskShift) { return "+" }
+        if stroke.flags.contains(.maskShift) {
+            switch stroke.keyCode {
+            case 18: return "!"
+            case 21: return activeLayout == .english ? "$" : ";"
+            case 22: return activeLayout == .english ? "^" : ":"
+            case 26: return activeLayout == .english ? "&" : "?"
+            case 25: return "("
+            case 29: return ")"
+            case 41: return activeLayout == .english ? ":" : "Ж"
+            default: break
+            }
+        }
         if stroke.keyCode == 44 {
             if activeLayout == .russian { return stroke.flags.contains(.maskShift) ? "," : "." }
             return stroke.flags.contains(.maskShift) ? "?" : "/"

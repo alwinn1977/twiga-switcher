@@ -4,12 +4,16 @@ import SwiftUI
 
 @main
 struct LayoutSwitcherMain: App {
-    @StateObject private var controller = AppController()
+    @StateObject private var controller = AppController(presentDialogs: true)
 
     var body: some Scene {
-        MenuBarExtra("LayoutSwitcher", systemImage: controller.state.systemImage) {
+        MenuBarExtra {
             LayoutSwitcherMenu(controller: controller)
                 .environment(\.locale, controller.displayLanguage.locale)
+        } label: {
+            Image(nsImage: MenuBarIcon.image(for: controller.state))
+                .accessibilityLabel("Twiga Switcher")
+                .accessibilityValue(controller.state.title(in: controller.displayLanguage))
         }
         Window(InterfaceText.dictionaries.localized(controller.displayLanguage), id: "dictionaries") {
             DictionaryManagerView(controller: controller)
@@ -38,27 +42,31 @@ private struct LayoutSwitcherMenu: View {
             set: { controller.setEnabled($0) }
         ))
         if controller.state == .permissionsRequired {
-            Button(InterfaceText.requestPermissions.localized(language)) { controller.requestPermissions() }
-            Button(InterfaceText.openPrivacySettings.localized(language)) { controller.openPrivacySettings() }
+            Button(InterfaceText.setupPermissions.localized(language)) { showWindow(id: "settings") }
         }
         if case .error = controller.state {
             Button(InterfaceText.restartMonitor.localized(language)) { controller.restartMonitor() }
         }
         Divider()
-        Button(InterfaceText.dictionariesMenu.localized(language)) { openWindow(id: "dictionaries") }
-        Button(InterfaceText.rulesMenu.localized(language)) { openWindow(id: "rules") }
-        Button(InterfaceText.settingsMenu.localized(language)) { openWindow(id: "settings") }
-        if let pair = controller.latestDecisionPair {
-            Divider()
-            Button(label(pair, action: .alwaysCorrect)) { controller.setLatestRule(.always) }
-            Button(label(pair, action: .neverCorrect)) { controller.setLatestRule(.never) }
-        }
+        Button(InterfaceText.dictionariesMenu.localized(language)) { showWindow(id: "dictionaries") }
+        Button(InterfaceText.rulesMenu.localized(language)) { showWindow(id: "rules") }
+        Button(InterfaceText.settingsMenu.localized(language)) { showWindow(id: "settings") }
         Divider()
         Button(InterfaceText.quit.localized(language)) { NSApplication.shared.terminate(nil) }
     }
 
-    private func label(_ pair: CorrectionPair, action: InterfaceText) -> String {
-        let text = action.localized(language, pair.source, pair.candidate)
-        return text.count <= 56 ? text : String(text.prefix(53)) + "…"
+    private func showWindow(id: String) {
+        // Opening a MenuBarExtra does not activate this accessory application.
+        NSApplication.shared.activate()
+        openWindow(id: id)
+        // Wait for the menu to dismiss and SwiftUI to create/order the scene.
+        DispatchQueue.main.async {
+            guard let window = NSApplication.shared.windows.first(where: {
+                $0.identifier?.rawValue == id
+            }) else { return }
+            if window.isMiniaturized { window.deminiaturize(nil) }
+            NSApplication.shared.activate()
+            window.makeKeyAndOrderFront(nil)
+        }
     }
 }

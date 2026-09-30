@@ -27,6 +27,37 @@ final class FocusedInputProcessorTests: XCTestCase {
         ))
     }
 
+    func testForceCanReverseAutomaticBoundaryCorrection() {
+        var processor = makeProcessor()
+        let focus = FocusSnapshot(identity: .init(processID: 10, elementHash: 20))
+        for character in "ghbdtn" { _ = processor.handle(.character(character), focus: focus) }
+        _ = processor.handle(.boundary(" "), focus: focus)
+        XCTAssertEqual(processor.forceCorrection(focus: focus), .replace(.init(
+            deleteKeyCount: 7, replacement: "ghbdtn", delimiter: " ", targetLayout: .english
+        )))
+    }
+
+    func testForceCanBeRepeatedWithoutRetypingWord() {
+        var processor = makeProcessor()
+        let focus = FocusSnapshot(identity: .init(processID: 10, elementHash: 20))
+        for character in "qzq" { _ = processor.handle(.character(character), focus: focus) }
+        _ = processor.forceCorrection(focus: focus)
+        XCTAssertEqual(processor.forceCorrection(focus: focus), .replace(.init(
+            deleteKeyCount: 3, replacement: "qzq", delimiter: "", targetLayout: .english
+        )))
+    }
+
+    func testBlockedWordDoesNotDisableFollowingWords() {
+        var processor = makeProcessor()
+        let focus = FocusSnapshot(identity: .init(processID: 10, elementHash: 20))
+        for character in "abc🙂" { _ = processor.handle(.character(character), focus: focus) }
+        _ = processor.handle(.boundary(" "), focus: focus)
+        for character in "ghbdtn" { _ = processor.handle(.character(character), focus: focus) }
+        XCTAssertEqual(processor.handle(.boundary(" "), focus: focus), .replace(.init(
+            deleteKeyCount: 6, replacement: "привет", delimiter: " ", targetLayout: .russian
+        )))
+    }
+
     func testShiftTransitionsDoNotDiscardTitleCaseWord() {
         var processor = makeProcessor()
         let focus = FocusSnapshot(identity: .init(processID: 10, elementHash: 20))

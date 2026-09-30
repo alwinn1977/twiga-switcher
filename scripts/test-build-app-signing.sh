@@ -3,9 +3,9 @@ set -euo pipefail
 
 script_dir=${0:A:h}
 project_dir=${script_dir:h}
-app_path="$project_dir/build/LayoutSwitcher.app"
-expected_requirement='designated => identifier "dev.layoutswitcher.prototype"'
-lexicon_bundle="$app_path/Contents/Resources/LayoutSwitcher_LayoutSwitcherLexicon.bundle/Contents/Resources"
+app_path="$project_dir/build/Twiga Switcher.app"
+expected_requirement='designated => identifier "dev.twigaswitcher.prototype"'
+lexicon_bundle="$app_path/Contents/Resources/TwigaSwitcher_LayoutSwitcherLexicon.bundle/Contents/Resources"
 base_lexicons="$lexicon_bundle/Lexicons/Base"
 computer_terms="$lexicon_bundle/Lexicons/ComputerTerms"
 
@@ -18,7 +18,7 @@ if [[ "$actual_requirement" != "$expected_requirement" ]]; then
   exit 1
 fi
 
-for notice in wordfreq-NOTICE.md CC-BY-SA-4.0.txt; do
+for notice in README.md wordfreq-NOTICE.md wordfreq-LICENSE.txt Apache-2.0.txt CC-BY-SA-4.0.txt computer-terms-NOTICE.txt CC0-1.0.txt; do
   if [[ ! -s "$lexicon_bundle/Licenses/$notice" ]]; then
     print -u2 -- "Missing bundled lexicon notice: $notice"
     exit 1

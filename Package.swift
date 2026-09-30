@@ -2,7 +2,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "LayoutSwitcher",
+    name: "TwigaSwitcher",
     platforms: [.macOS(.v14)],
     products: [
         .library(name: "LayoutSwitcherCore", targets: ["LayoutSwitcherCore"]),

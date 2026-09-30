@@ -10,10 +10,11 @@ private struct FixedFocus: FocusSnapshotProviding {
 
 private final class RecordingPoster: EventPosting {
     var isAvailable = true
+    var acceptsUnicode = true
     var backspaces: [Int] = []
     var unicode: [String] = []
     func postBackspaces(count: Int) -> Bool { backspaces.append(count); return true }
-    func postUnicode(_ text: String) -> Bool { unicode.append(text); return true }
+    func postUnicode(_ text: String) -> Bool { unicode.append(text); return acceptsUnicode }
 }
 
 private final class RecordingInputSources: InputSourceManaging {
@@ -27,6 +28,40 @@ private final class RecordingSound: LayoutSwitchSoundPlaying {
 }
 
 final class KeyboardMonitorHotkeyTests: XCTestCase {
+    func testRepeatedTapTimeoutsDoNotPermanentlyStopMonitoring() throws {
+        let fixture = try makeFixture()
+        defer { fixture.cleanup() }
+        var stopped = false
+        fixture.monitor.onStopped = { _ in stopped = true }
+        let event = try XCTUnwrap(CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: true))
+        _ = fixture.monitor.handle(type: .tapDisabledByTimeout, event: event)
+        _ = fixture.monitor.handle(type: .tapDisabledByTimeout, event: event)
+        XCTAssertFalse(stopped)
+    }
+
+    func testFailedLiveInsertionCannotLeavePhantomWordForForceCorrection() throws {
+        let fixture = try makeFixture()
+        defer { fixture.cleanup() }
+        fixture.poster.acceptsUnicode = false
+        for character in "ghbd" { send(String(character), to: fixture.monitor) }
+        XCTAssertEqual(fixture.poster.backspaces, [3])
+        fixture.poster.acceptsUnicode = true
+        XCTAssertTrue(send("", keyCode: 37, flags: [.maskControl, .maskAlternate], to: fixture.monitor))
+        XCTAssertEqual(fixture.poster.backspaces, [3], "Force must not delete text before the failed word")
+    }
+
+    func testFailedUndoInsertionCannotLeavePhantomWordForForceCorrection() throws {
+        let fixture = try makeFixture()
+        defer { fixture.cleanup() }
+        for character in "ghbd" { send(String(character), to: fixture.monitor) }
+        fixture.poster.acceptsUnicode = false
+        XCTAssertFalse(send("", keyCode: 6, flags: [.maskControl, .maskAlternate], to: fixture.monitor))
+        XCTAssertEqual(fixture.poster.backspaces, [3, 4])
+        fixture.poster.acceptsUnicode = true
+        XCTAssertTrue(send("", keyCode: 37, flags: [.maskControl, .maskAlternate], to: fixture.monitor))
+        XCTAssertEqual(fixture.poster.backspaces, [3, 4], "Force must not delete text before the failed undo")
+    }
+
     func testForceShortcutCorrectsWordAndOnlyThenOffersManualRule() throws {
         let fixture = try makeFixture()
         defer { fixture.cleanup() }
@@ -62,56 +97,55 @@ final class KeyboardMonitorHotkeyTests: XCTestCase {
         var published: [CorrectionPair?] = []
         fixture.monitor.onLatestDecision = { published.append($0) }
 
-        for character in "ghbdtn" { send(String(character), to: fixture.monitor) }
-        send(" ", keyCode: 49, to: fixture.monitor)
-        XCTAssertEqual(fixture.poster.unicode, ["привет", " "])
+        for character in "ghbd" { send(String(character), to: fixture.monitor) }
+        XCTAssertEqual(fixture.poster.unicode, ["прив"])
         XCTAssertFalse(published.contains { $0 != nil })
 
         sendModifier([.maskControl], to: fixture.monitor)
         sendModifier([.maskControl, .maskAlternate], to: fixture.monitor)
         XCTAssertFalse(send("", keyCode: 6, flags: [.maskControl, .maskAlternate], to: fixture.monitor))
 
-        XCTAssertEqual(fixture.poster.backspaces, [6, 7])
-        XCTAssertEqual(Array(fixture.poster.unicode.suffix(2)), ["ghbdtn", " "])
+        XCTAssertEqual(fixture.poster.backspaces, [3, 4])
+        XCTAssertEqual(fixture.poster.unicode, ["прив", "ghbd"])
         XCTAssertEqual(fixture.sources.selected, [.russian, .english])
-        XCTAssertEqual(fixture.rules.disposition(source: "ghbdtn", candidate: "привет"), .never)
+        XCTAssertEqual(fixture.rules.disposition(source: "ghbd", candidate: "прив"), .never)
         XCTAssertEqual(fixture.sound.count, 2)
     }
 
     func testCommandZRemainsAvailableToTextEditAfterAutomaticCorrection() throws {
         let fixture = try makeFixture()
         defer { fixture.cleanup() }
-        for character in "ghbdtn" { send(String(character), to: fixture.monitor) }
+        for character in "ghbd" { send(String(character), to: fixture.monitor) }
         send(" ", keyCode: 49, to: fixture.monitor)
 
         XCTAssertTrue(send("z", keyCode: 6, flags: [.maskCommand], to: fixture.monitor))
 
-        XCTAssertEqual(fixture.poster.backspaces, [6])
-        XCTAssertNil(fixture.rules.disposition(source: "ghbdtn", candidate: "привет"))
+        XCTAssertEqual(fixture.poster.backspaces, [3])
+        XCTAssertNil(fixture.rules.disposition(source: "ghbd", candidate: "прив"))
     }
 
     func testUndoDoesNotReverseStaleCorrectionAfterAnotherBoundary() throws {
         let fixture = try makeFixture()
         defer { fixture.cleanup() }
-        for character in "ghbdtn" { send(String(character), to: fixture.monitor) }
+        for character in "ghbd" { send(String(character), to: fixture.monitor) }
         send(" ", keyCode: 49, to: fixture.monitor)
         send(" ", keyCode: 49, to: fixture.monitor)
 
         XCTAssertTrue(send("", keyCode: 6, flags: [.maskControl, .maskAlternate], to: fixture.monitor))
-        XCTAssertEqual(fixture.poster.backspaces, [6])
-        XCTAssertNil(fixture.rules.disposition(source: "ghbdtn", candidate: "привет"))
+        XCTAssertEqual(fixture.poster.backspaces, [3])
+        XCTAssertNil(fixture.rules.disposition(source: "ghbd", candidate: "прив"))
     }
 
     func testUndoDoesNotReverseStaleCorrectionAfterBackspace() throws {
         let fixture = try makeFixture()
         defer { fixture.cleanup() }
-        for character in "ghbdtn" { send(String(character), to: fixture.monitor) }
+        for character in "ghbd" { send(String(character), to: fixture.monitor) }
         send(" ", keyCode: 49, to: fixture.monitor)
         send("", keyCode: 51, to: fixture.monitor)
 
         XCTAssertTrue(send("", keyCode: 6, flags: [.maskControl, .maskAlternate], to: fixture.monitor))
-        XCTAssertEqual(fixture.poster.backspaces, [6])
-        XCTAssertNil(fixture.rules.disposition(source: "ghbdtn", candidate: "привет"))
+        XCTAssertEqual(fixture.poster.backspaces, [3])
+        XCTAssertNil(fixture.rules.disposition(source: "ghbd", candidate: "прив"))
     }
 
     @discardableResult
@@ -159,6 +193,7 @@ final class KeyboardMonitorHotkeyTests: XCTestCase {
             ruleStore: rules,
             focusProvider: FixedFocus(),
             executor: ReplacementExecutor(eventPoster: poster, inputSources: sources),
+            hotkeys: .legacyDefaults,
             sound: sound
         )
         return (monitor, poster, sources, sound, rules, { try? FileManager.default.removeItem(at: root) })

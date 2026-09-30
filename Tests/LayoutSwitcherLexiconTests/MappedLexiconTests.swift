@@ -4,6 +4,21 @@ import LayoutSwitcherCore
 @testable import LayoutSwitcherLexicon
 
 final class MappedLexiconTests: XCTestCase {
+    func testWordCompletionUsesFrequencyAndLanguageWithoutChangingPhrasePrefixMeaning() throws {
+        let url = try compileFixture([
+            .init(language: .english, key: "hello", score: 5_000, flags: []),
+            .init(language: .english, key: "hellos", score: 3_000, flags: [])
+        ])
+        let lexicon = try MappedLexicon(url: url, expectedLanguage: .english)
+        XCTAssertTrue(lexicon.hasCompletion(for: "HELL", language: .english, minimumScore: 4_000))
+        XCTAssertTrue(lexicon.hasCompletion(for: "hello", language: .english, minimumScore: 4_000))
+        XCTAssertFalse(lexicon.lookup("hell", language: .english).isStrictPrefix)
+        XCTAssertFalse(lexicon.hasCompletion(for: "hellos", language: .english, minimumScore: 4_000))
+        XCTAssertFalse(lexicon.hasCompletion(for: "hell", language: .russian, minimumScore: 0))
+        XCTAssertFalse(lexicon.hasCompletion(for: "", language: .english, minimumScore: 0))
+        XCTAssertFalse(lexicon.hasCompletion(for: "absent", language: .english, minimumScore: 0))
+    }
+
     func testMappedLookupFindsEdgesPrefixSubjectFlagAndMiss() throws {
         let url = try compileFixture([
             .init(language: .english, key: "alpha", score: 3_000, flags: []),

@@ -1,5 +1,7 @@
 import CoreGraphics
+import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 private struct ShortcutKeyChoice: Identifiable {
     let id: UInt16
@@ -21,6 +23,7 @@ private struct ShortcutModifiersChoice: Identifiable, Sendable {
     let label: InterfaceText
 
     static let all: [Self] = [
+        Self(id: CGEventFlags.maskAlternate.rawValue, label: .option),
         Self(id: CGEventFlags.maskControl.rawValue | CGEventFlags.maskAlternate.rawValue, label: .controlOption),
         Self(id: CGEventFlags.maskControl.rawValue | CGEventFlags.maskShift.rawValue, label: .controlShift),
         Self(id: CGEventFlags.maskCommand.rawValue | CGEventFlags.maskAlternate.rawValue, label: .commandOption),
@@ -32,10 +35,69 @@ private struct ShortcutModifiersChoice: Identifiable, Sendable {
 
 struct ShortcutSettingsView: View {
     @ObservedObject var controller: AppController
+    @State private var applicationError: String?
     private var language: DisplayLanguage { controller.displayLanguage }
 
     var body: some View {
         Form {
+            if let message = controller.inputSourceError {
+                Section(InterfaceText.inputSources.localized(language)) {
+                    Text(InterfaceText.diagnostic(message, in: language)).foregroundStyle(.orange)
+                    Text(InterfaceText.addInputSourcesHelp.localized(language)).font(.caption)
+                    Button(InterfaceText.openSystemSettings.localized(language)) {
+                        SuggestionDialogs.openKeyboardSettings()
+                    }
+                }
+            }
+            Section(InterfaceText.permissionsSection.localized(language)) {
+                Text(InterfaceText.permissionsHelp.localized(language))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                permissionRow(.accessibility, granted: controller.permissionSnapshot.accessibility)
+                permissionRow(.inputMonitoring, granted: controller.permissionSnapshot.inputMonitoring)
+                Button(InterfaceText.checkAgain.localized(language)) { controller.refresh() }
+            }
+
+            Section(InterfaceText.applications.localized(language)) {
+                Text(InterfaceText.applicationsHelp.localized(language))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                ForEach(controller.applicationRules) { rule in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(rule.name)
+                            Text(rule.bundleID).font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Picker(rule.name, selection: Binding(
+                            get: { rule.mode },
+                            set: { controller.setApplicationMode($0, for: rule.bundleID) }
+                        )) {
+                            Text(InterfaceText.standardMode.localized(language)).tag(ApplicationCorrectionMode.standard)
+                            Text(InterfaceText.disabledMode.localized(language)).tag(ApplicationCorrectionMode.disabled)
+                            Text(InterfaceText.compatibilityMode.localized(language)).tag(ApplicationCorrectionMode.compatibility)
+                        }
+                        .labelsHidden()
+                        .frame(width: 160)
+                        if !rule.isBuiltIn {
+                            Button {
+                                controller.removeApplication(bundleID: rule.bundleID)
+                            } label: {
+                                Image(systemName: "minus.circle")
+                            }
+                            .help(InterfaceText.removeApplication.localized(language))
+                        }
+                    }
+                }
+                Text(InterfaceText.compatibilityWarning.localized(language))
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                Button(InterfaceText.addApplication.localized(language)) { addApplication() }
+                if let applicationError {
+                    Text(applicationError).foregroundStyle(.red)
+                }
+            }
+
             Section(InterfaceText.language.localized(language)) {
                 Picker(InterfaceText.languageChoice.localized(language), selection: Binding(
                     get: { controller.interfaceLanguage },
@@ -67,7 +129,48 @@ struct ShortcutSettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(minWidth: 560, minHeight: 320)
+        .frame(minWidth: 650, minHeight: 640)
+    }
+
+    private func permissionRow(_ kind: PermissionKind, granted: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text((kind == .accessibility ? InterfaceText.accessibility : .inputMonitoring).localized(language))
+                    .fontWeight(.medium)
+                Spacer()
+                Label(
+                    (granted ? InterfaceText.granted : .missing).localized(language),
+                    systemImage: granted ? "checkmark.circle.fill" : "exclamationmark.circle"
+                )
+                .foregroundStyle(granted ? .green : .orange)
+            }
+            Text((kind == .accessibility ? InterfaceText.accessibilityHelp : .inputMonitoringHelp).localized(language))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            if !granted {
+                HStack {
+                    Button(InterfaceText.requestAccess.localized(language)) { controller.requestPermission(kind) }
+                    Button(InterfaceText.openSystemSettings.localized(language)) { controller.openPermissionSettings(kind) }
+                }
+            }
+        }
+    }
+
+    private func addApplication() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.application]
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard let bundle = Bundle(url: url), let id = bundle.bundleIdentifier else {
+            applicationError = InterfaceText.invalidApplication.localized(language)
+            return
+        }
+        controller.addApplication(bundleID: id, name: bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String
+            ?? bundle.object(forInfoDictionaryKey: "CFBundleName") as? String
+            ?? url.deletingPathExtension().lastPathComponent)
+        applicationError = nil
     }
 
     private func shortcutRow(

@@ -9,7 +9,7 @@ final class TypingSessionDriverTests: XCTestCase {
         XCTAssertEqual(trace.layoutSelections, [.russian])
         XCTAssertEqual(trace.manualSelections.count, 0)
         XCTAssertEqual(trace.automaticSelections, [.russian])
-        XCTAssertEqual(trace.words.first?.raw, "ghbdtn")
+        XCTAssertEqual(trace.words.first?.raw, "ghbdет")
         XCTAssertEqual(trace.words.first?.layoutAfter, .russian)
     }
 
@@ -34,7 +34,7 @@ final class TypingSessionDriverTests: XCTestCase {
         let session = try TypingSessionDriver(initialLayout: .english)
         let trace = try session.type("PostgreSQL, бюджет ", mode: .automatic)
         XCTAssertEqual(trace.editorText, "PostgreSQL, бюджет ", trace.firstDivergence)
-        XCTAssertEqual(trace.words.last?.raw, ",.l;tn")
+        XCTAssertEqual(trace.words.last?.raw, ",.l;tт")
         XCTAssertEqual(trace.words.last?.layoutAfter, .russian)
     }
 

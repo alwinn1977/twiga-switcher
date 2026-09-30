@@ -168,10 +168,12 @@ final class TypingSessionDriver {
         var firstDivergence = "none"
         var line = 1
         var keyRecords: [PhysicalKeyRecord] = []
+        var intendedLayout = editor.layout
 
         for token in tokens {
             switch token {
             case let .word(word, language):
+                intendedLayout = language
                 if mode == .manualAtScriptChanges && editor.layout != language {
                     editor.selectManually(language)
                 }
@@ -200,7 +202,7 @@ final class TypingSessionDriver {
             case let .separator(separator):
                 for character in separator {
                     let layout = editor.layout
-                    let stroke = try Self.stroke(for: character, language: layout)
+                    let stroke = try Self.stroke(for: character, language: intendedLayout)
                     let rendered = PhysicalTypingKeys.render(stroke, in: layout)
                     keyRecords.append(.init(
                         expectedByteOffset: expectedPrefix.utf8.count,

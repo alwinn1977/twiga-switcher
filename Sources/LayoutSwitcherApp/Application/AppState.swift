@@ -29,12 +29,4 @@ public enum AppState: Equatable, Sendable {
         }
     }
 
-    public var systemImage: String {
-        switch self {
-        case .active: return "keyboard.badge.ellipsis"
-        case .paused: return "pause.circle"
-        case .permissionsRequired: return "exclamationmark.triangle"
-        case .error: return "xmark.circle"
-        }
-    }
 }

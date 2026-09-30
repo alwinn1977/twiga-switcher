@@ -32,6 +32,7 @@ public enum InterfaceText: CaseIterable, Sendable {
     case language, languageChoice, systemLanguage, russianLanguage, englishLanguage
     case keyboardShortcuts, undoLastCorrection, forceCorrectCurrentWord, shortcutHelp
     case feedback, playSound, modifiers, key, space
+    case option, addRulePrompt, addRuleHelp, inputSources, addInputSourcesHelp
     case controlOption, controlShift, commandOption, commandShift, controlCommand, optionShift
     case remove, notice, importDictionary, cancel, removeDictionaryPrompt, dictionary
     case englishFrequencyDictionary, russianFrequencyDictionary, baseDictionaryDetail
@@ -46,13 +47,17 @@ public enum InterfaceText: CaseIterable, Sendable {
     case bundledFrequencyDictionariesUnavailable
     case builtInComputerTermsUnavailable, disabledUnreadableDictionary, disabledCorruptDictionary
     case errorWithDetail
+    case permissionsSection, permissionsHelp, accessibility, accessibilityHelp, inputMonitoring, inputMonitoringHelp
+    case granted, missing, requestAccess, openSystemSettings, checkAgain, setupPermissions
+    case applications, applicationsHelp, standardMode, disabledMode, compatibilityMode, compatibilityWarning
+    case addApplication, removeApplication, invalidApplication
 
     private var translations: (english: String, russian: String) {
         switch self {
-        case .automaticCorrectionActive: return ("Automatic correction is active", "Автокоррекция включена")
-        case .automaticCorrectionPaused: return ("Automatic correction is paused", "Автокоррекция приостановлена")
+        case .automaticCorrectionActive: return ("Automatic correction is active", "Автопереключение включено")
+        case .automaticCorrectionPaused: return ("Automatic correction is paused", "Автопереключение приостановлено")
         case .permissionsRequired: return ("Permissions required", "Требуются разрешения")
-        case .enableAutomaticCorrection: return ("Enable Automatic Correction", "Включить автокоррекцию")
+        case .enableAutomaticCorrection: return ("Enable Automatic Correction", "Включить автопереключение")
         case .requestPermissions: return ("Request Required Permissions", "Запросить разрешения")
         case .openPrivacySettings: return ("Open Privacy Settings", "Открыть настройки конфиденциальности")
         case .restartMonitor: return ("Restart Monitor", "Перезапустить перехват клавиш")
@@ -62,7 +67,7 @@ public enum InterfaceText: CaseIterable, Sendable {
         case .dictionariesMenu: return ("Dictionaries…", "Словари…")
         case .rulesMenu: return ("Rules…", "Правила…")
         case .settingsMenu: return ("Settings…", "Настройки…")
-        case .quit: return ("Quit LayoutSwitcher", "Завершить LayoutSwitcher")
+        case .quit: return ("Quit Twiga Switcher", "Завершить Twiga Switcher")
         case .alwaysCorrect: return ("Always correct “%@” → “%@”", "Всегда исправлять «%@» → «%@»")
         case .neverCorrect: return ("Never correct “%@” → “%@”", "Никогда не исправлять «%@» → «%@»")
         case .language: return ("Language", "Язык")
@@ -79,6 +84,11 @@ public enum InterfaceText: CaseIterable, Sendable {
         case .modifiers: return ("Modifiers", "Модификаторы")
         case .key: return ("Key", "Клавиша")
         case .space: return ("Space", "Пробел")
+        case .addRulePrompt: return ("Remember this correction?", "Запомнить это исправление?")
+        case .addRuleHelp: return ("Choose how Twiga Switcher should handle this pair next time.", "Выберите, как Twiga Switcher должен обрабатывать эту пару в следующий раз.")
+        case .inputSources: return ("Keyboard layouts", "Раскладки клавиатуры")
+        case .addInputSourcesHelp: return ("Add the missing layout in System Settings → Keyboard → Text Input → Edit. Correction resumes automatically when both languages are available.", "Добавьте недостающую раскладку: Настройки macOS → Клавиатура → Ввод текста → Изменить. Исправления возобновятся автоматически, когда будут доступны оба языка.")
+        case .option: return ("Option", "Опция")
         case .controlOption: return ("Control + Option", "Контроль + Опция")
         case .controlShift: return ("Control + Shift", "Контроль + Шифт")
         case .commandOption: return ("Command + Option", "Команда + Опция")
@@ -116,7 +126,7 @@ public enum InterfaceText: CaseIterable, Sendable {
         case .eventMonitorStopped: return ("Event monitor stopped", "Перехват клавиш остановлен")
         case .matchingInputSourceUnavailable: return ("Matching input source is unavailable", "Нужная раскладка недоступна")
         case .russianInputSourceUnavailable: return ("Russian input source is unavailable", "Русская раскладка недоступна")
-        case .englishInputSourceUnavailable: return ("English input source is unavailable", "Английская раскладка недоступна")
+        case .englishInputSourceUnavailable: return ("English input source is unavailable", "Английская раскладка (US/ABC/British) недоступна")
         case .unableToPostReplacementEvents: return ("Unable to post replacement events", "Не удалось отправить события исправления")
         case .replacementInterrupted: return ("Replacement was interrupted", "Исправление прервано")
         case .undoReplacementInterrupted: return ("Undo replacement was interrupted", "Отмена исправления прервана")
@@ -126,6 +136,27 @@ public enum InterfaceText: CaseIterable, Sendable {
         case .disabledUnreadableDictionary: return ("Disabled unreadable dictionary pack: %@", "Отключён нечитаемый пакет словаря: %@")
         case .disabledCorruptDictionary: return ("Disabled corrupt dictionary pack: %@", "Отключён повреждённый пакет словаря: %@")
         case .errorWithDetail: return ("Error: %@", "Ошибка: %@")
+        case .permissionsSection: return ("Permissions", "Доступы")
+        case .permissionsHelp: return ("Twiga Switcher needs both permissions to read typing and check whether the focused field is safe to edit. After granting access, return here and check again. macOS may require restarting the app.", "Для работы нужны оба доступа: читать нажатия клавиш и проверять, можно ли безопасно исправлять текст в активном поле. После выдачи доступа вернитесь сюда и проверьте снова. macOS может потребовать перезапуск приложения.")
+        case .accessibility: return ("Accessibility", "Универсальный доступ")
+        case .accessibilityHelp: return ("Checks the focused field and sends corrected text.", "Проверяет активное поле и вводит исправленный текст.")
+        case .inputMonitoring: return ("Input Monitoring", "Мониторинг ввода")
+        case .inputMonitoringHelp: return ("Reads keystrokes so a wrong layout can be detected.", "Читает нажатия клавиш, чтобы определить неверную раскладку.")
+        case .granted: return ("Granted", "Разрешён")
+        case .missing: return ("Not granted", "Не разрешён")
+        case .requestAccess: return ("Request Access", "Запросить доступ")
+        case .openSystemSettings: return ("Open System Settings", "Открыть настройки macOS")
+        case .checkAgain: return ("Check Again", "Проверить снова")
+        case .setupPermissions: return ("Set Up Permissions…", "Настроить доступы…")
+        case .applications: return ("Applications", "Приложения")
+        case .applicationsHelp: return ("Unlisted apps use Standard. Standard: correct only in editable fields confirmed by macOS. Off: never correct. Compatibility: also allow editable groups and apps that do not report a focused field.", "Для приложений вне списка действует обычный режим. Обычный: исправлять только в редактируемых полях, подтверждённых macOS. Выключен: никогда не исправлять. Совместимость: также разрешать редактируемые группы и приложения, которые не сообщают активное поле.")
+        case .standardMode: return ("Standard", "Обычный")
+        case .disabledMode: return ("Off", "Выключен")
+        case .compatibilityMode: return ("Compatibility", "Совместимость")
+        case .compatibilityWarning: return ("Compatibility may affect search or password fields if the app does not identify them. Fields explicitly marked as secure remain blocked.", "Режим совместимости может затронуть поиск или пароль, если приложение не сообщает тип поля. Поля, явно помеченные как защищённые, остаются заблокированы.")
+        case .addApplication: return ("Add Application…", "Добавить приложение…")
+        case .removeApplication: return ("Remove application", "Удалить приложение")
+        case .invalidApplication: return ("Choose a macOS app with a bundle identifier.", "Выберите приложение macOS с идентификатором пакета.")
         }
     }
 
@@ -135,6 +166,9 @@ public enum InterfaceText: CaseIterable, Sendable {
     }
 
     public static func diagnostic(_ message: String, in language: DisplayLanguage) -> String {
+        if message.contains("\n") {
+            return message.components(separatedBy: "\n").map { diagnostic($0, in: language) }.joined(separator: "\n")
+        }
         for key in [
             Self.eventMonitorNotRunning, .unableToStartKeyboardMonitor, .unableToSaveLearnedRule,
             .eventMonitorStopped, .matchingInputSourceUnavailable,

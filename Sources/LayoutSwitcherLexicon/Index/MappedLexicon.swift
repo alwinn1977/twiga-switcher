@@ -134,6 +134,18 @@ public final class MappedLexicon: @unchecked Sendable, FrequencyLexicon {
         )
     }
 
+    public func hasCompletion(for prefix: String, language: Language, minimumScore: Int) -> Bool {
+        guard language == self.language else { return false }
+        let query = Data(TermNormalizer.normalize(prefix).utf8)
+        guard !query.isEmpty else { return false }
+        var index = lowerBound(for: query)
+        while index < entryCount, let record = try? record(at: index), record.key.starts(with: query) {
+            if record.score >= minimumScore { return true }
+            index += 1
+        }
+        return false
+    }
+
     private struct Record {
         let key: Data
         let score: Int

@@ -54,9 +54,19 @@ public struct HotkeyConfiguration: Codable, Equatable, Sendable {
     public var undo: Hotkey
     public var force: Hotkey
 
-    public static let defaults = HotkeyConfiguration(
+    static let legacyDefaults = HotkeyConfiguration(
         undo: Hotkey(keyCode: 6, modifiers: [.maskControl, .maskAlternate], label: "Z"),
         force: Hotkey(keyCode: 37, modifiers: [.maskControl, .maskAlternate], label: "L")
+    )
+
+    static let optionSpaceDefaults = HotkeyConfiguration(
+        undo: Hotkey(keyCode: 49, modifiers: [.maskAlternate, .maskShift], label: "Space"),
+        force: Hotkey(keyCode: 49, modifiers: [.maskAlternate], label: "Space")
+    )
+
+    public static let defaults = HotkeyConfiguration(
+        undo: Hotkey(keyCode: 6, modifiers: [.maskControl, .maskShift], label: "Z"),
+        force: Hotkey(keyCode: 49, modifiers: [.maskControl, .maskShift], label: "Space")
     )
 
     public func action(keyCode: UInt16, flags: CGEventFlags) -> HotkeyAction? {
@@ -82,7 +92,8 @@ public final class HotkeyStore {
               !configuration.undo.hasSameCombination(as: configuration.force) else {
             return .defaults
         }
-        return configuration
+        return configuration == .legacyDefaults || configuration == .optionSpaceDefaults
+            ? .defaults : configuration
     }
 
     @discardableResult

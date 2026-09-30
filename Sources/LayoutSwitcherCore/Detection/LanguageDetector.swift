@@ -26,9 +26,28 @@ public struct LanguageDetector<Lexicon: FrequencyLexicon, Rules: UserCorrectionR
         evaluate(original: original, conversion: conversion).decision
     }
 
+    func shouldCorrectWhileTyping(original: String, conversion: LayoutConversion) -> Bool {
+        let source = TermNormalizer.normalize(original)
+        let target = TermNormalizer.normalize(conversion.text)
+        guard target.count >= 4,
+              target.allSatisfy({ $0.isLetter }),
+              !rules.preventsEarlyCorrection(source: source, candidate: target) else { return false }
+        let sourceLanguage: Language = conversion.targetLayout == .russian ? .english : .russian
+        let targetLanguage: Language = conversion.targetLayout == .russian ? .russian : .english
+        guard lexicon.lookup(source, language: sourceLanguage).score == nil,
+              !lexicon.hasCompletion(for: source, language: sourceLanguage, minimumScore: 0) else { return false }
+        return lexicon.hasCompletion(for: target, language: targetLanguage, minimumScore: 4_000)
+    }
+
     func hasRecognizedOriginal(_ original: String, conversion: LayoutConversion) -> Bool {
         let language: Language = conversion.targetLayout == .russian ? .english : .russian
         return lexicon.lookup(TermNormalizer.normalize(original), language: language).score != nil
+    }
+
+    func hasOriginalCompletion(_ original: String, conversion: LayoutConversion) -> Bool {
+        let language: Language = conversion.targetLayout == .russian ? .english : .russian
+        return hasRecognizedOriginal(original, conversion: conversion)
+            || lexicon.hasCompletion(for: original, language: language, minimumScore: 0)
     }
 
     func hasAlwaysRule(_ original: String, conversion: LayoutConversion) -> Bool {

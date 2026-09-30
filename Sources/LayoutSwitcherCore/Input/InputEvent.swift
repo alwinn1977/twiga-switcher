@@ -1,6 +1,7 @@
 public enum InputEvent: Equatable, Sendable {
     case character(Character)
     case boundary(String)
+    case punctuation(text: String, english: String, russian: String)
     case backspace
     case reset
     case synthetic
