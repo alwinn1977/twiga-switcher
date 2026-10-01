@@ -1,8 +1,8 @@
 import CryptoKit
 import Darwin
 import Foundation
-import LayoutSwitcherCore
-import LayoutSwitcherLexicon
+import TwigaSwitcherCore
+import TwigaSwitcherLexicon
 
 @main
 enum LexiconCompilerMain {

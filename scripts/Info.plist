@@ -14,7 +14,7 @@
   <key>UTExportedTypeDeclarations</key>
   <array>
     <dict>
-      <key>UTTypeIdentifier</key><string>dev.layoutswitcher.dictionary</string>
+      <key>UTTypeIdentifier</key><string>dev.twigaswitcher.dictionary</string>
       <key>UTTypeDescription</key><string>Twiga Switcher Dictionary</string>
       <key>UTTypeConformsTo</key><array><string>com.apple.package</string></array>
       <key>UTTypeTagSpecification</key>

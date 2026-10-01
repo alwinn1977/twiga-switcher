@@ -5,7 +5,7 @@ script_dir=${0:A:h}
 project_dir=${script_dir:h}
 app_path="$project_dir/build/Twiga Switcher.app"
 expected_requirement='designated => identifier "dev.twigaswitcher.prototype"'
-lexicon_bundle="$app_path/Contents/Resources/TwigaSwitcher_LayoutSwitcherLexicon.bundle/Contents/Resources"
+lexicon_bundle="$app_path/Contents/Resources/TwigaSwitcher_TwigaSwitcherLexicon.bundle/Contents/Resources"
 base_lexicons="$lexicon_bundle/Lexicons/Base"
 computer_terms="$lexicon_bundle/Lexicons/ComputerTerms"
 

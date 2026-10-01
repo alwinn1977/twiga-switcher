@@ -3,7 +3,7 @@ set -euo pipefail
 
 script_dir=${0:A:h}
 project_dir=${script_dir:h}
-resource_dir="$project_dir/Sources/LayoutSwitcherLexicon/Resources/Lexicons/Base"
+resource_dir="$project_dir/Sources/TwigaSwitcherLexicon/Resources/Lexicons/Base"
 wordfreq_version=3.1.1
 wordfreq_wheel_sha256=4b1c6ecffc6198be3396d5cf871c4423ca71c907c231348d352dd54d62b97473
 

@@ -2,7 +2,7 @@
 
 ## Status
 
-Approved in conversation on 2026-09-22. This document defines the next LayoutSwitcher feature increment: fast frequency-based recognition, extensible subject dictionaries, and local user learning.
+Approved in conversation on 2026-09-22. This document defines the next TwigaSwitcher feature increment: fast frequency-based recognition, extensible subject dictionaries, and local user learning.
 
 ## Goal
 
@@ -120,17 +120,17 @@ ru<TAB>4100<TAB>машинное обучение
 
 Blank lines and lines whose first non-whitespace character is `#` are ignored. Valid language values are `en` and `ru`. Scores are integers from 0 through 8,000. A term must contain at least one letter, fit within eight tokens and 128 Unicode scalars, and contain only the supported term characters.
 
-Import limits are 50 MiB of source data, 1,000,000 entries total, and 4 KiB per physical line. The importer validates the complete package in a temporary directory, compiles one index per present language, verifies both generated indexes by reopening them, writes a generated manifest with checksums, and then atomically renames the completed directory into `Application Support/LayoutSwitcher/Dictionaries/<identifier>`. An existing identifier is replaced only by an explicit user-approved update. Invalid imports leave the catalog and existing files unchanged.
+Import limits are 50 MiB of source data, 1,000,000 entries total, and 4 KiB per physical line. The importer validates the complete package in a temporary directory, compiles one index per present language, verifies both generated indexes by reopening them, writes a generated manifest with checksums, and then atomically renames the completed directory into `Application Support/TwigaSwitcher/Dictionaries/<identifier>`. An existing identifier is replaced only by an explicit user-approved update. Invalid imports leave the catalog and existing files unchanged.
 
 Built-in packs use the same manifest and compiled-index reader, but ship already compiled in the application resources. Base dictionaries are always enabled. Subject packs can be toggled; imported packs can also be removed. The application asks for confirmation before deleting an imported pack; canceling leaves its files and catalog state unchanged.
 
 ## User learning
 
-`UserRuleStore` persists only normalized source/candidate pairs and the disposition `always` or `never`. It uses an atomically replaced versioned JSON file in `Application Support/LayoutSwitcher`; it does not store surrounding text, application names, timestamps, or a word history. Rules are loaded into a small immutable in-memory map because their expected size is user-scale rather than corpus-scale.
+`UserRuleStore` persists only normalized source/candidate pairs and the disposition `always` or `never`. It uses an atomically replaced versioned JSON file in `Application Support/TwigaSwitcher`; it does not store surrounding text, application names, timestamps, or a word history. Rules are loaded into a small immutable in-memory map because their expected size is user-scale rather than corpus-scale.
 
 After every automatic replacement, the monitor retains one in-memory `LastCorrection` containing the source, candidate, delimiter, focus identity, and reversal plan. It is invalidated by the next printable input, focus change, mouse click, application change, or after ten seconds.
 
-Command-Z while `LastCorrection` is valid is handled by LayoutSwitcher: it reverses the replacement, restores the prior layout, saves a `never` rule for that exact pair, and consumes the shortcut. Otherwise Command-Z is passed to the foreground application unchanged.
+Command-Z while `LastCorrection` is valid is handled by TwigaSwitcher: it reverses the replacement, restores the prior layout, saves a `never` rule for that exact pair, and consumes the shortcut. Otherwise Command-Z is passed to the foreground application unchanged.
 
 The menu exposes the most recent decision pair while it remains available:
 

@@ -2,7 +2,7 @@
 
 ## Status and purpose
 
-Approved in conversation on 2026-09-23. The goal is to establish whether LayoutSwitcher produces the intended text during sustained typing, rather than merely making correct decisions for isolated words. The user requested two tests of the same long mixed-language sample: one with no manual layout changes and one with manual changes at language boundaries.
+Approved in conversation on 2026-09-23. The goal is to establish whether TwigaSwitcher produces the intended text during sustained typing, rather than merely making correct decisions for isolated words. The user requested two tests of the same long mixed-language sample: one with no manual layout changes and one with manual changes at language boundaries.
 
 ## Acceptance criteria
 
@@ -25,7 +25,7 @@ The guarantee is for this documented corpus and supported editable fields, not a
 
 The expected text is written by hand and committed as a fixture; it is never produced by `LayoutConverter` or by applying the implementation's correction plans to itself. The same expected text is used for both modes. In the manual scenario, the driver selects the layout of each next word before its first key whenever that word's Cyrillic/Latin script differs from the active layout; punctuation inherits the preceding word's layout.
 
-The test driver maps each intended printable key to its physical US/Russian keyboard position with a small independent fixture mapping. It emits a `CGEvent` containing the character actually produced by the current simulated input source. This makes `rjvgm.nth` observable as raw input rather than calling the conversion API directly. Spaces, newlines, punctuation, and modifier transitions use their actual keycodes. The simulator updates its current layout only when LayoutSwitcher selects a source or when the manual scenario explicitly switches it.
+The test driver maps each intended printable key to its physical US/Russian keyboard position with a small independent fixture mapping. It emits a `CGEvent` containing the character actually produced by the current simulated input source. This makes `rjvgm.nth` observable as raw input rather than calling the conversion API directly. Spaces, newlines, punctuation, and modifier transitions use their actual keycodes. The simulator updates its current layout only when TwigaSwitcher selects a source or when the manual scenario explicitly switches it.
 
 The corpus should use supported US/Russian printable keys and realistic vocabulary. It must not be constructed only from words already known to pass; any failing line is preserved as a regression case. New dictionary entries are acceptable only when they are legitimate general or computer terms, not as hidden test overrides.
 

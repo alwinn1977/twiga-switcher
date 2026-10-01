@@ -4,7 +4,7 @@
 
 **Goal:** Replace the prototype spelling check with fast memory-mapped Russian and English frequency lexicons, add extensible subject dictionaries beginning with Computer Terms, and add private local learning with manual rules and Command-Z reversal.
 
-**Architecture:** `LayoutSwitcherCore` owns normalization, confidence policy, phrase buffering, and platform-independent rule contracts. A new `LayoutSwitcherLexicon` target owns the deterministic binary format, compiler, `mmap` reader, pack validation/import, and immutable catalog snapshots. `LayoutSwitcherApp` composes those pieces with the event tap, local persistence, and native management windows; all slow work happens outside the keyboard callback.
+**Architecture:** `TwigaSwitcherCore` owns normalization, confidence policy, phrase buffering, and platform-independent rule contracts. A new `TwigaSwitcherLexicon` target owns the deterministic binary format, compiler, `mmap` reader, pack validation/import, and immutable catalog snapshots. `TwigaSwitcherApp` composes those pieces with the event tap, local persistence, and native management windows; all slow work happens outside the keyboard callback.
 
 **Tech Stack:** Swift 6, Swift Package Manager, SwiftUI/AppKit, Darwin `mmap`, Foundation JSON/TSV handling, CryptoKit SHA-256, XCTest, Python 3 with build-time `wordfreq` 3.1.1.
 
@@ -35,14 +35,14 @@
 ### Task 1: Frequency evidence and conservative decision policy
 
 **Files:**
-- Create: `Sources/LayoutSwitcherCore/Detection/TermNormalizer.swift`
-- Create: `Sources/LayoutSwitcherCore/Detection/FrequencyLexicon.swift`
-- Create: `Sources/LayoutSwitcherCore/Detection/UserCorrectionRule.swift`
-- Modify: `Sources/LayoutSwitcherCore/Detection/LanguageDetector.swift`
-- Modify temporarily: `Sources/LayoutSwitcherApp/SystemIntegration/SystemLexicon.swift`
-- Modify: `Sources/LayoutSwitcherApp/SystemIntegration/KeyboardMonitor.swift`
-- Test: `Tests/LayoutSwitcherCoreTests/TermNormalizerTests.swift`
-- Test: `Tests/LayoutSwitcherCoreTests/LanguageDetectorFrequencyTests.swift`
+- Create: `Sources/TwigaSwitcherCore/Detection/TermNormalizer.swift`
+- Create: `Sources/TwigaSwitcherCore/Detection/FrequencyLexicon.swift`
+- Create: `Sources/TwigaSwitcherCore/Detection/UserCorrectionRule.swift`
+- Modify: `Sources/TwigaSwitcherCore/Detection/LanguageDetector.swift`
+- Modify temporarily: `Sources/TwigaSwitcherApp/SystemIntegration/SystemLexicon.swift`
+- Modify: `Sources/TwigaSwitcherApp/SystemIntegration/KeyboardMonitor.swift`
+- Test: `Tests/TwigaSwitcherCoreTests/TermNormalizerTests.swift`
+- Test: `Tests/TwigaSwitcherCoreTests/LanguageDetectorFrequencyTests.swift`
 - Modify: existing detector and pipeline tests to use frequency fixtures
 
 **Interfaces:**
@@ -121,14 +121,14 @@ Expected: PASS.
 
 Replace `SetLexicon` / `PipelineLexicon` with small real score-backed fixtures. Preserve tests for `ghbdtn → привет`, ambiguity, unknown pairs, synthetic events, and unsafe focus. Until Task 6 deletes it, make `SystemLexicon` conform to `FrequencyLexicon` by translating a recognized spelling into a score of 3,000 with no subject/prefix flags; construct the live detector with `NoUserCorrectionRules`. This bridge exists only to keep every intermediate commit buildable and receives no new behavior.
 
-Run: `swift test --filter LayoutSwitcherCoreTests`
+Run: `swift test --filter TwigaSwitcherCoreTests`
 
 Expected: all core tests PASS.
 
 - [ ] **Step 6: Commit the policy increment**
 
 ```bash
-git add Sources/LayoutSwitcherCore Sources/LayoutSwitcherApp Tests
+git add Sources/TwigaSwitcherCore Sources/TwigaSwitcherApp Tests
 git commit -m "feat: add frequency recognition policy"
 ```
 
@@ -138,12 +138,12 @@ git commit -m "feat: add frequency recognition policy"
 
 **Files:**
 - Modify: `Package.swift`
-- Create: `Sources/LayoutSwitcherLexicon/Index/LexiconIndexFormat.swift`
-- Create: `Sources/LayoutSwitcherLexicon/Index/LexiconIndexCompiler.swift`
-- Create: `Sources/LayoutSwitcherLexicon/Index/MappedFile.swift`
-- Create: `Sources/LayoutSwitcherLexicon/Index/MappedLexicon.swift`
-- Create: `Tests/LayoutSwitcherLexiconTests/LexiconIndexCompilerTests.swift`
-- Create: `Tests/LayoutSwitcherLexiconTests/MappedLexiconTests.swift`
+- Create: `Sources/TwigaSwitcherLexicon/Index/LexiconIndexFormat.swift`
+- Create: `Sources/TwigaSwitcherLexicon/Index/LexiconIndexCompiler.swift`
+- Create: `Sources/TwigaSwitcherLexicon/Index/MappedFile.swift`
+- Create: `Sources/TwigaSwitcherLexicon/Index/MappedLexicon.swift`
+- Create: `Tests/TwigaSwitcherLexiconTests/LexiconIndexCompilerTests.swift`
+- Create: `Tests/TwigaSwitcherLexiconTests/MappedLexiconTests.swift`
 
 **Interfaces:**
 - Consumes: `TermNormalizer`, `Language`, `LexiconMatch`, and `FrequencyLexicon` from Task 1.
@@ -208,7 +208,7 @@ Expected: FAIL because `MappedLexicon` is missing.
 
 Open with `O_RDONLY | O_CLOEXEC`, obtain size with `fstat`, map with `mmap(PROT_READ, MAP_PRIVATE)`, and close the file descriptor after mapping. Validate magic, schema, language, monotonic sorted keys, record/string bounds, maximum phrase metadata, and SHA-256 before making the instance available. Use bytewise UTF-8 comparison for exact and strict-prefix binary searches. Call `munmap` once in `deinit`.
 
-Run: `swift test --filter LayoutSwitcherLexiconTests`
+Run: `swift test --filter TwigaSwitcherLexiconTests`
 
 Expected: PASS, including truncation, corrupt checksum, corrupt offset, wrong language, first/middle/last/miss, NFC, and prefix cases.
 
@@ -219,7 +219,7 @@ Run: `swift test`
 Expected: all tests PASS with no warnings.
 
 ```bash
-git add Package.swift Sources/LayoutSwitcherLexicon Tests/LayoutSwitcherLexiconTests
+git add Package.swift Sources/TwigaSwitcherLexicon Tests/TwigaSwitcherLexiconTests
 git commit -m "feat: add memory mapped lexicon index"
 ```
 
@@ -234,13 +234,13 @@ git commit -m "feat: add memory mapped lexicon index"
 - Create: `scripts/test-generate-base-lexicons.sh`
 - Modify: `scripts/build-app.sh`
 - Modify: `scripts/test-build-app-signing.sh`
-- Create: `Sources/LayoutSwitcherLexicon/Resources/Lexicons/Base/manifest.json`
-- Create: `Sources/LayoutSwitcherLexicon/Resources/Lexicons/Base/en.lsidx`
-- Create: `Sources/LayoutSwitcherLexicon/Resources/Lexicons/Base/ru.lsidx`
-- Create: `Sources/LayoutSwitcherLexicon/Resources/Licenses/wordfreq-NOTICE.md`
-- Create: `Sources/LayoutSwitcherLexicon/Resources/Licenses/CC-BY-SA-4.0.txt`
-- Create: `Sources/LayoutSwitcherLexicon/Bundled/BundledLexiconResources.swift`
-- Test: `Tests/LayoutSwitcherLexiconTests/BundledLexiconResourceTests.swift`
+- Create: `Sources/TwigaSwitcherLexicon/Resources/Lexicons/Base/manifest.json`
+- Create: `Sources/TwigaSwitcherLexicon/Resources/Lexicons/Base/en.lsidx`
+- Create: `Sources/TwigaSwitcherLexicon/Resources/Lexicons/Base/ru.lsidx`
+- Create: `Sources/TwigaSwitcherLexicon/Resources/Licenses/wordfreq-NOTICE.md`
+- Create: `Sources/TwigaSwitcherLexicon/Resources/Licenses/CC-BY-SA-4.0.txt`
+- Create: `Sources/TwigaSwitcherLexicon/Bundled/BundledLexiconResources.swift`
+- Test: `Tests/TwigaSwitcherLexiconTests/BundledLexiconResourceTests.swift`
 - Modify: `Package.swift`
 
 **Interfaces:**
@@ -279,7 +279,7 @@ Run: `zsh scripts/generate-base-lexicons.sh`
 
 Expected: committed resources are regenerated atomically; English and Russian each contain broad frequency coverage, checksums match the manifest, and total resources remain within the agreed 5–20 MiB target unless the generated manifest documents and justifies a smaller result.
 
-Update `build-app.sh` to copy every expected SwiftPM resource bundle explicitly, including `LayoutSwitcher_LayoutSwitcherLexicon.bundle`, before signing. Extend the packaging test to open the packaged bundle resources through `BundledLexiconResources`, so a missing copy fails by behavior.
+Update `build-app.sh` to copy every expected SwiftPM resource bundle explicitly, including `TwigaSwitcher_TwigaSwitcherLexicon.bundle`, before signing. Extend the packaging test to open the packaged bundle resources through `BundledLexiconResources`, so a missing copy fails by behavior.
 
 - [ ] **Step 5: Write and run bundled-resource behavior tests**
 
@@ -299,7 +299,7 @@ Expected: PASS and verify resource checksums and notice presence, not merely fil
 - [ ] **Step 6: Commit generated resources and reproducibility tooling**
 
 ```bash
-git add Package.swift Sources/LexiconCompiler scripts Sources/LayoutSwitcherApp/Resources Tests/LayoutSwitcherLexiconTests
+git add Package.swift Sources/LexiconCompiler scripts Sources/TwigaSwitcherApp/Resources Tests/TwigaSwitcherLexiconTests
 git commit -m "feat: bundle frequency lexicon resources"
 ```
 
@@ -308,13 +308,13 @@ git commit -m "feat: bundle frequency lexicon resources"
 ### Task 4: Subject pack validation, atomic import, and catalog snapshots
 
 **Files:**
-- Create: `Sources/LayoutSwitcherLexicon/Packs/DictionaryPackManifest.swift`
-- Create: `Sources/LayoutSwitcherLexicon/Packs/DictionaryPackImporter.swift`
-- Create: `Sources/LayoutSwitcherLexicon/Packs/DictionaryPackStore.swift`
-- Create: `Sources/LayoutSwitcherLexicon/Catalog/LexiconCatalog.swift`
-- Create: `Sources/LayoutSwitcherLexicon/Catalog/LexiconCatalogSnapshot.swift`
-- Create: `Tests/LayoutSwitcherLexiconTests/DictionaryPackImporterTests.swift`
-- Create: `Tests/LayoutSwitcherLexiconTests/LexiconCatalogTests.swift`
+- Create: `Sources/TwigaSwitcherLexicon/Packs/DictionaryPackManifest.swift`
+- Create: `Sources/TwigaSwitcherLexicon/Packs/DictionaryPackImporter.swift`
+- Create: `Sources/TwigaSwitcherLexicon/Packs/DictionaryPackStore.swift`
+- Create: `Sources/TwigaSwitcherLexicon/Catalog/LexiconCatalog.swift`
+- Create: `Sources/TwigaSwitcherLexicon/Catalog/LexiconCatalogSnapshot.swift`
+- Create: `Tests/TwigaSwitcherLexiconTests/DictionaryPackImporterTests.swift`
+- Create: `Tests/TwigaSwitcherLexiconTests/LexiconCatalogTests.swift`
 
 **Interfaces:**
 - Consumes: compiler and mapped reader from Task 2; `FrequencyLexicon` from Task 1.
@@ -343,7 +343,7 @@ Expected: PASS for valid and invalid fixtures.
 
 ```swift
 func testFailedUpdatePreservesWorkingPackBytesAndEnabledState() async throws {
-    let original = try await importValidPack(id: "dev.layoutswitcher.test")
+    let original = try await importValidPack(id: "dev.twigaswitcher.test")
     let before = try Data(contentsOf: original.englishIndexURL)
     await XCTAssertThrowsErrorAsync { try await importer.importPackage(at: corruptUpdate) }
     XCTAssertEqual(try Data(contentsOf: original.englishIndexURL), before)
@@ -375,14 +375,14 @@ Expected: FAIL because catalog snapshots are missing.
 
 Build snapshot arrays off-callback. Publish a single retained snapshot under a short lock; each lookup copies the current snapshot reference, releases the lock, then searches mapped indexes. Subject matches return `isSubjectTerm = true`; base matches do not. Prefix lookup uses the same enabled snapshot.
 
-Run: `swift test --filter LayoutSwitcherLexiconTests`
+Run: `swift test --filter TwigaSwitcherLexiconTests`
 
 Expected: PASS, including concurrent swap and longest phrase.
 
 - [ ] **Step 7: Commit pack infrastructure**
 
 ```bash
-git add Sources/LayoutSwitcherLexicon Tests/LayoutSwitcherLexiconTests
+git add Sources/TwigaSwitcherLexicon Tests/TwigaSwitcherLexiconTests
 git commit -m "feat: add importable subject dictionaries"
 ```
 
@@ -391,15 +391,15 @@ git commit -m "feat: add importable subject dictionaries"
 ### Task 5: Phrase-aware input buffering and punctuation conversion
 
 **Files:**
-- Create: `Sources/LayoutSwitcherCore/Input/PhraseBuffer.swift`
-- Modify: `Sources/LayoutSwitcherCore/Input/InputEvent.swift`
-- Modify: `Sources/LayoutSwitcherCore/Conversion/LayoutConverter.swift`
-- Modify: `Sources/LayoutSwitcherCore/Correction/InputPipeline.swift`
-- Delete after migration: `Sources/LayoutSwitcherCore/Input/WordBuffer.swift`
-- Create: `Tests/LayoutSwitcherCoreTests/PhraseBufferTests.swift`
-- Modify: `Tests/LayoutSwitcherCoreTests/LayoutConverterTests.swift`
-- Modify: `Tests/LayoutSwitcherCoreTests/InputPipelineTests.swift`
-- Delete after migration: `Tests/LayoutSwitcherCoreTests/WordBufferTests.swift`
+- Create: `Sources/TwigaSwitcherCore/Input/PhraseBuffer.swift`
+- Modify: `Sources/TwigaSwitcherCore/Input/InputEvent.swift`
+- Modify: `Sources/TwigaSwitcherCore/Conversion/LayoutConverter.swift`
+- Modify: `Sources/TwigaSwitcherCore/Correction/InputPipeline.swift`
+- Delete after migration: `Sources/TwigaSwitcherCore/Input/WordBuffer.swift`
+- Create: `Tests/TwigaSwitcherCoreTests/PhraseBufferTests.swift`
+- Modify: `Tests/TwigaSwitcherCoreTests/LayoutConverterTests.swift`
+- Modify: `Tests/TwigaSwitcherCoreTests/InputPipelineTests.swift`
+- Delete after migration: `Tests/TwigaSwitcherCoreTests/WordBufferTests.swift`
 
 **Interfaces:**
 - Consumes: `CorrectionDecision.deferred` and `FrequencyLexicon` from Task 1.
@@ -464,14 +464,14 @@ Expected: FAIL while the pipeline still uses `WordBuffer`.
 
 At a boundary, evaluate candidate suffixes longest-first. A correction resets the window and emits a deletion count including already-passed internal spaces/punctuation but excluding the currently suppressed delimiter. A strict-prefix decision retains the bounded window. If no candidate corrects or defers, pass through and release stale text.
 
-Run: `swift test --filter LayoutSwitcherCoreTests`
+Run: `swift test --filter TwigaSwitcherCoreTests`
 
 Expected: all core tests PASS.
 
 - [ ] **Step 7: Commit phrase handling**
 
 ```bash
-git add Sources/LayoutSwitcherCore Tests/LayoutSwitcherCoreTests
+git add Sources/TwigaSwitcherCore Tests/TwigaSwitcherCoreTests
 git commit -m "feat: recognize phrases and technical punctuation"
 ```
 
@@ -480,18 +480,18 @@ git commit -m "feat: recognize phrases and technical punctuation"
 ### Task 6: Replace `NSSpellChecker` in the live keyboard path
 
 **Files:**
-- Create: `Sources/LayoutSwitcherApp/SystemIntegration/LexiconService.swift`
-- Modify: `Sources/LayoutSwitcherApp/SystemIntegration/KeyboardEventNormalizer.swift`
-- Modify: `Sources/LayoutSwitcherApp/SystemIntegration/FocusedInputProcessor.swift`
-- Modify: `Sources/LayoutSwitcherApp/SystemIntegration/KeyboardMonitor.swift`
-- Modify: `Sources/LayoutSwitcherApp/Application/AppController.swift`
-- Delete: `Sources/LayoutSwitcherApp/SystemIntegration/SystemLexicon.swift`
-- Delete: `Sources/LayoutSwitcherCore/Detection/WordLexicon.swift`
-- Delete: `Sources/LayoutSwitcherApp/Resources/en.txt`
-- Delete: `Sources/LayoutSwitcherApp/Resources/ru.txt`
-- Modify: `Tests/LayoutSwitcherAppTests/KeyboardEventNormalizerTests.swift`
-- Modify: `Tests/LayoutSwitcherAppTests/FocusedInputProcessorTests.swift`
-- Replace: `Tests/LayoutSwitcherAppTests/SystemLexiconTests.swift` with `LexiconServiceTests.swift`
+- Create: `Sources/TwigaSwitcherApp/SystemIntegration/LexiconService.swift`
+- Modify: `Sources/TwigaSwitcherApp/SystemIntegration/KeyboardEventNormalizer.swift`
+- Modify: `Sources/TwigaSwitcherApp/SystemIntegration/FocusedInputProcessor.swift`
+- Modify: `Sources/TwigaSwitcherApp/SystemIntegration/KeyboardMonitor.swift`
+- Modify: `Sources/TwigaSwitcherApp/Application/AppController.swift`
+- Delete: `Sources/TwigaSwitcherApp/SystemIntegration/SystemLexicon.swift`
+- Delete: `Sources/TwigaSwitcherCore/Detection/WordLexicon.swift`
+- Delete: `Sources/TwigaSwitcherApp/Resources/en.txt`
+- Delete: `Sources/TwigaSwitcherApp/Resources/ru.txt`
+- Modify: `Tests/TwigaSwitcherAppTests/KeyboardEventNormalizerTests.swift`
+- Modify: `Tests/TwigaSwitcherAppTests/FocusedInputProcessorTests.swift`
+- Replace: `Tests/TwigaSwitcherAppTests/SystemLexiconTests.swift` with `LexiconServiceTests.swift`
 
 **Interfaces:**
 - Consumes: mapped bundled resources, catalog snapshots, phrase pipeline.
@@ -526,7 +526,7 @@ Expected: FAIL against the word-only normalizer/processor.
 
 The event callback performs only event normalization, focus snapshots, immutable catalog lookup, and event posting. Pack loading, checksum validation, JSON work, compilation, and normal file I/O remain outside it. Preserve Codex `AXGroup` support and all secure-field exclusions.
 
-Run: `swift test --filter LayoutSwitcherAppTests`
+Run: `swift test --filter TwigaSwitcherAppTests`
 
 Expected: all app tests PASS.
 
@@ -541,7 +541,7 @@ Expected: all tests PASS with no dependency on `NSSpellChecker` behavior.
 - [ ] **Step 6: Commit live integration**
 
 ```bash
-git add Sources/LayoutSwitcherApp Tests/LayoutSwitcherAppTests
+git add Sources/TwigaSwitcherApp Tests/TwigaSwitcherAppTests
 git commit -m "feat: use mapped lexicons for live correction"
 ```
 
@@ -550,16 +550,16 @@ git commit -m "feat: use mapped lexicons for live correction"
 ### Task 7: Persistent rules and safe Command-Z learning
 
 **Files:**
-- Create: `Sources/LayoutSwitcherApp/Learning/UserRuleStore.swift`
-- Create: `Sources/LayoutSwitcherApp/Learning/UserRuleSnapshot.swift`
-- Create: `Sources/LayoutSwitcherApp/Learning/LastCorrectionCoordinator.swift`
-- Modify: `Sources/LayoutSwitcherApp/SystemIntegration/EventPoster.swift`
-- Modify: `Sources/LayoutSwitcherApp/SystemIntegration/ReplacementExecutor.swift`
-- Modify: `Sources/LayoutSwitcherApp/SystemIntegration/KeyboardEventNormalizer.swift`
-- Modify: `Sources/LayoutSwitcherApp/SystemIntegration/KeyboardMonitor.swift`
-- Create: `Tests/LayoutSwitcherAppTests/UserRuleStoreTests.swift`
-- Create: `Tests/LayoutSwitcherAppTests/LastCorrectionCoordinatorTests.swift`
-- Modify: `Tests/LayoutSwitcherAppTests/ReplacementExecutorTests.swift`
+- Create: `Sources/TwigaSwitcherApp/Learning/UserRuleStore.swift`
+- Create: `Sources/TwigaSwitcherApp/Learning/UserRuleSnapshot.swift`
+- Create: `Sources/TwigaSwitcherApp/Learning/LastCorrectionCoordinator.swift`
+- Modify: `Sources/TwigaSwitcherApp/SystemIntegration/EventPoster.swift`
+- Modify: `Sources/TwigaSwitcherApp/SystemIntegration/ReplacementExecutor.swift`
+- Modify: `Sources/TwigaSwitcherApp/SystemIntegration/KeyboardEventNormalizer.swift`
+- Modify: `Sources/TwigaSwitcherApp/SystemIntegration/KeyboardMonitor.swift`
+- Create: `Tests/TwigaSwitcherAppTests/UserRuleStoreTests.swift`
+- Create: `Tests/TwigaSwitcherAppTests/LastCorrectionCoordinatorTests.swift`
+- Modify: `Tests/TwigaSwitcherAppTests/ReplacementExecutorTests.swift`
 
 **Interfaces:**
 - Consumes: rule contracts from Task 1 and focus identities from existing safety code.
@@ -603,14 +603,14 @@ Expected: PASS.
 
 Normalize Command-Z as its own event only when no other unsafe modifier is present. Ask the coordinator before resetting; consume only a successful safe reversal. Publish the latest considered source/candidate pair to `AppController` for menu actions, but retain no list/history.
 
-Run: `swift test --filter LayoutSwitcherAppTests`
+Run: `swift test --filter TwigaSwitcherAppTests`
 
 Expected: all app tests PASS, including normal Command-Z pass-through.
 
 - [ ] **Step 6: Commit learning behavior**
 
 ```bash
-git add Sources/LayoutSwitcherApp Tests/LayoutSwitcherAppTests
+git add Sources/TwigaSwitcherApp Tests/TwigaSwitcherAppTests
 git commit -m "feat: learn local correction rules"
 ```
 
@@ -619,17 +619,17 @@ git commit -m "feat: learn local correction rules"
 ### Task 8: Native dictionary and rule management UI
 
 **Files:**
-- Create: `Sources/LayoutSwitcherApp/DictionaryUI/DictionaryManagerModel.swift`
-- Create: `Sources/LayoutSwitcherApp/DictionaryUI/DictionaryManagerView.swift`
-- Create: `Sources/LayoutSwitcherApp/Learning/RulesManagerModel.swift`
-- Create: `Sources/LayoutSwitcherApp/Learning/RulesManagerView.swift`
-- Create: `Sources/LayoutSwitcherApp/DictionaryUI/DictionaryPackageType.swift`
-- Modify: `Sources/LayoutSwitcherApp/Application/AppController.swift`
-- Modify: `Sources/LayoutSwitcherApp/Application/LayoutSwitcherMain.swift`
+- Create: `Sources/TwigaSwitcherApp/DictionaryUI/DictionaryManagerModel.swift`
+- Create: `Sources/TwigaSwitcherApp/DictionaryUI/DictionaryManagerView.swift`
+- Create: `Sources/TwigaSwitcherApp/Learning/RulesManagerModel.swift`
+- Create: `Sources/TwigaSwitcherApp/Learning/RulesManagerView.swift`
+- Create: `Sources/TwigaSwitcherApp/DictionaryUI/DictionaryPackageType.swift`
+- Modify: `Sources/TwigaSwitcherApp/Application/AppController.swift`
+- Modify: `Sources/TwigaSwitcherApp/Application/TwigaSwitcherMain.swift`
 - Modify: `scripts/Info.plist`
-- Create: `Tests/LayoutSwitcherAppTests/DictionaryManagerModelTests.swift`
-- Create: `Tests/LayoutSwitcherAppTests/RulesManagerModelTests.swift`
-- Modify: `Tests/LayoutSwitcherAppTests/AppStateTests.swift`
+- Create: `Tests/TwigaSwitcherAppTests/DictionaryManagerModelTests.swift`
+- Create: `Tests/TwigaSwitcherAppTests/RulesManagerModelTests.swift`
+- Modify: `Tests/TwigaSwitcherAppTests/AppStateTests.swift`
 
 **Interfaces:**
 - Consumes: `DictionaryPackStore`, importer, catalog reload, rule store, and latest pair from Tasks 4/7.
@@ -647,7 +647,7 @@ Expected: FAIL because the model is missing.
 
 - [ ] **Step 2: Implement dictionary model and native view**
 
-Declare `dev.layoutswitcher.dictionary` as a package UTI whose filename extension is `.layoutdict` in `Info.plist` and expose it as `UTType.layoutDictionary`. Use `fileImporter` for that type, a list with base/subject sections, toggles, metadata details, import/update/remove buttons, progress, and a license notice action. Compilation runs in a detached task with bounded priority; UI publication and catalog swap happen on `MainActor`.
+Declare `dev.twigaswitcher.dictionary` as a package UTI whose filename extension is `.layoutdict` in `Info.plist` and expose it as `UTType.layoutDictionary`. Use `fileImporter` for that type, a list with base/subject sections, toggles, metadata details, import/update/remove buttons, progress, and a license notice action. Compilation runs in a detached task with bounded priority; UI publication and catalog swap happen on `MainActor`.
 
 Run: `swift test --filter DictionaryManagerModelTests`
 
@@ -665,7 +665,7 @@ Expected: FAIL until models/controller actions exist.
 
 Add SwiftUI `Window` scenes with stable IDs, open them through `openWindow`, and keep the menu-bar extra lightweight. Escape pair display text and truncate labels without truncating stored rules. Confirmation dialogs name only the pack/rule being removed.
 
-Run: `swift test --filter LayoutSwitcherAppTests`
+Run: `swift test --filter TwigaSwitcherAppTests`
 
 Expected: all app tests PASS.
 
@@ -673,12 +673,12 @@ Expected: all app tests PASS.
 
 Run: `zsh scripts/build-app.sh`
 
-Expected: `build/LayoutSwitcher.app` builds, plist validation succeeds, and signing succeeds.
+Expected: `build/TwigaSwitcher.app` builds, plist validation succeeds, and signing succeeds.
 
 - [ ] **Step 6: Commit UI management**
 
 ```bash
-git add Sources/LayoutSwitcherApp Tests/LayoutSwitcherAppTests
+git add Sources/TwigaSwitcherApp Tests/TwigaSwitcherAppTests
 git commit -m "feat: manage dictionaries and learned rules"
 ```
 
@@ -690,17 +690,17 @@ git commit -m "feat: manage dictionaries and learned rules"
 - Create: `Dictionaries/Computer Terms.layoutdict/manifest.json`
 - Create: `Dictionaries/Computer Terms.layoutdict/entries.tsv`
 - Create: `Dictionaries/Computer Terms.layoutdict/NOTICE.txt`
-- Create: `Sources/LayoutSwitcherLexicon/Resources/Lexicons/ComputerTerms/manifest.json`
+- Create: `Sources/TwigaSwitcherLexicon/Resources/Lexicons/ComputerTerms/manifest.json`
 - Create: generated `en.lsidx` and `ru.lsidx` under that resource directory
 - Create: `Sources/LexiconBenchmark/main.swift`
 - Create: `scripts/benchmark-lexicons.sh`
-- Create: `Tests/LayoutSwitcherAppTests/ComputerTermsResourceTests.swift`
+- Create: `Tests/TwigaSwitcherAppTests/ComputerTermsResourceTests.swift`
 - Modify: `Package.swift`
 - Modify: `README.md`
 
 **Interfaces:**
 - Consumes: subject pack compiler/import format and mapped catalog.
-- Produces: enabled-by-default built-in pack `dev.layoutswitcher.dictionary.computer-terms`.
+- Produces: enabled-by-default built-in pack `dev.twigaswitcher.dictionary.computer-terms`.
 - Produces: `LexiconBenchmark <en-index> <ru-index> --lookups 10000 --budget-ms 250` reporting total, median, p99, hit count, miss count, mapped bytes, and resident-memory delta.
 
 - [ ] **Step 1: Write failing required-term resource tests**
@@ -725,7 +725,7 @@ Expected: FAIL because the pack resource is absent.
 
 Include reviewed operating-system, programming-language, database, networking, cloud, development-tool, hardware, security, and AI terminology in both languages. Use a documented project-authored scoring rubric; do not copy an unattributed third-party list. Compile with the same CLI used for imports and include source TSV for reviewability.
 
-Run: `swift run LexiconCompiler compile-tsv --input "Dictionaries/Computer Terms.layoutdict/entries.tsv" --output-directory Sources/LayoutSwitcherLexicon/Resources/Lexicons/ComputerTerms --manifest "Dictionaries/Computer Terms.layoutdict/manifest.json"`
+Run: `swift run LexiconCompiler compile-tsv --input "Dictionaries/Computer Terms.layoutdict/entries.tsv" --output-directory Sources/TwigaSwitcherLexicon/Resources/Lexicons/ComputerTerms --manifest "Dictionaries/Computer Terms.layoutdict/manifest.json"`
 
 Expected: compilation and verification succeed.
 
@@ -762,12 +762,12 @@ swift test
 zsh scripts/test-generate-base-lexicons.sh
 zsh scripts/benchmark-lexicons.sh
 zsh scripts/test-build-app-signing.sh
-codesign --verify --deep --strict build/LayoutSwitcher.app
-plutil -lint build/LayoutSwitcher.app/Contents/Info.plist
+codesign --verify --deep --strict build/TwigaSwitcher.app
+plutil -lint build/TwigaSwitcher.app/Contents/Info.plist
 git diff --check
 ```
 
-Expected: every command exits 0; all XCTest cases pass; time and memory benchmarks stay within budget; signature and plist validate. `build-app.sh` copies both SwiftPM resource bundles (`LayoutSwitcher_LayoutSwitcherApp.bundle` and `LayoutSwitcher_LayoutSwitcherLexicon.bundle`) into the app resources before signing.
+Expected: every command exits 0; all XCTest cases pass; time and memory benchmarks stay within budget; signature and plist validate. `build-app.sh` copies both SwiftPM resource bundles (`TwigaSwitcher_TwigaSwitcherApp.bundle` and `TwigaSwitcher_TwigaSwitcherLexicon.bundle`) into the app resources before signing.
 
 - [ ] **Step 7: Perform the manual smoke matrix**
 

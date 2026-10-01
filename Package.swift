@@ -5,27 +5,27 @@ let package = Package(
     name: "TwigaSwitcher",
     platforms: [.macOS(.v14)],
     products: [
-        .library(name: "LayoutSwitcherCore", targets: ["LayoutSwitcherCore"]),
-        .executable(name: "LayoutSwitcherApp", targets: ["LayoutSwitcherApp"]),
+        .library(name: "TwigaSwitcherCore", targets: ["TwigaSwitcherCore"]),
+        .executable(name: "TwigaSwitcherApp", targets: ["TwigaSwitcherApp"]),
         .executable(name: "LexiconCompiler", targets: ["LexiconCompiler"]),
         .executable(name: "LexiconBenchmark", targets: ["LexiconBenchmark"]),
     ],
     targets: [
-        .target(name: "LayoutSwitcherCore"),
+        .target(name: "TwigaSwitcherCore"),
         .target(
-            name: "LayoutSwitcherLexicon",
-            dependencies: ["LayoutSwitcherCore"],
+            name: "TwigaSwitcherLexicon",
+            dependencies: ["TwigaSwitcherCore"],
             resources: [
                 .copy("Resources/Lexicons"),
                 .copy("Resources/Licenses"),
             ]
         ),
-        .executableTarget(name: "LexiconCompiler", dependencies: ["LayoutSwitcherLexicon", "LayoutSwitcherCore"]),
-        .executableTarget(name: "LexiconBenchmark", dependencies: ["LayoutSwitcherLexicon", "LayoutSwitcherCore"]),
-        .executableTarget(name: "LayoutSwitcherApp", dependencies: ["LayoutSwitcherCore", "LayoutSwitcherLexicon"]),
-        .testTarget(name: "LayoutSwitcherCoreTests", dependencies: ["LayoutSwitcherCore"]),
-        .testTarget(name: "LayoutSwitcherLexiconTests", dependencies: ["LayoutSwitcherLexicon", "LayoutSwitcherCore"]),
-        .testTarget(name: "LayoutSwitcherAppTests", dependencies: ["LayoutSwitcherApp", "LayoutSwitcherCore", "LayoutSwitcherLexicon"]),
+        .executableTarget(name: "LexiconCompiler", dependencies: ["TwigaSwitcherLexicon", "TwigaSwitcherCore"]),
+        .executableTarget(name: "LexiconBenchmark", dependencies: ["TwigaSwitcherLexicon", "TwigaSwitcherCore"]),
+        .executableTarget(name: "TwigaSwitcherApp", dependencies: ["TwigaSwitcherCore", "TwigaSwitcherLexicon"]),
+        .testTarget(name: "TwigaSwitcherCoreTests", dependencies: ["TwigaSwitcherCore"]),
+        .testTarget(name: "TwigaSwitcherLexiconTests", dependencies: ["TwigaSwitcherLexicon", "TwigaSwitcherCore"]),
+        .testTarget(name: "TwigaSwitcherAppTests", dependencies: ["TwigaSwitcherApp", "TwigaSwitcherCore", "TwigaSwitcherLexicon"]),
     ],
     swiftLanguageModes: [.v6]
 )

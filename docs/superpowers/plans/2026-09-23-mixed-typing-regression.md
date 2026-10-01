@@ -34,9 +34,9 @@
 ### Task 1: Literal corpus and independent physical-key map
 
 **Files:**
-- Create: `Tests/LayoutSwitcherAppTests/MixedTypingCorpus.swift`
-- Create: `Tests/LayoutSwitcherAppTests/PhysicalTypingKeys.swift`
-- Create: `Tests/LayoutSwitcherAppTests/PhysicalTypingKeysTests.swift`
+- Create: `Tests/TwigaSwitcherAppTests/MixedTypingCorpus.swift`
+- Create: `Tests/TwigaSwitcherAppTests/PhysicalTypingKeys.swift`
+- Create: `Tests/TwigaSwitcherAppTests/PhysicalTypingKeysTests.swift`
 
 **Interfaces:**
 - Produces: `MixedTypingCorpus.expected: String` containing the exact 24 lines from the spec plus one final newline, `expectedLines: [String]`, and `expectedLinePrefixes: [String]`.
@@ -141,7 +141,7 @@ Run: `swift test --filter PhysicalTypingKeysTests`. Expected: PASS and exactly e
 - [ ] **Step 5: Commit the test corpus and key map**
 
 ```bash
-git add Tests/LayoutSwitcherAppTests/MixedTypingCorpus.swift Tests/LayoutSwitcherAppTests/PhysicalTypingKeys.swift Tests/LayoutSwitcherAppTests/PhysicalTypingKeysTests.swift
+git add Tests/TwigaSwitcherAppTests/MixedTypingCorpus.swift Tests/TwigaSwitcherAppTests/PhysicalTypingKeys.swift Tests/TwigaSwitcherAppTests/PhysicalTypingKeysTests.swift
 git commit -m "test: add literal mixed typing corpus and physical keys"
 ```
 
@@ -149,8 +149,8 @@ git commit -m "test: add literal mixed typing corpus and physical keys"
 
 **Files:**
 - Modify: `Package.swift` (add the lexicon target to the app test target's dependencies)
-- Create: `Tests/LayoutSwitcherAppTests/TypingSessionDriver.swift`
-- Create: `Tests/LayoutSwitcherAppTests/TypingSessionDriverTests.swift`
+- Create: `Tests/TwigaSwitcherAppTests/TypingSessionDriver.swift`
+- Create: `Tests/TwigaSwitcherAppTests/TypingSessionDriverTests.swift`
 
 **Interfaces:**
 - Consumes: `MixedTypingCorpus`, `PhysicalTypingKeys`, `KeyboardMonitor.handle(type:event:)`, `EventPosting`, `InputSourceManaging`, `FocusSnapshotProviding`.
@@ -186,7 +186,7 @@ Run: `swift test --filter TypingSessionDriverTests`. Expected: compile failure b
 
 - [ ] **Step 3: Implement the virtual editor at the external event boundary**
 
-Use `LexiconService(baseLoader: { try BundledLexiconResources.loadBase() }, packsRootURL: temporaryRoot, computerTermsLoader: { try BundledLexiconResources.loadComputerTerms() }, computerTermsSettings: isolatedSettings)` and `UserRuleStore(fileURL: temporaryRoot/rules.json)`; add `LayoutSwitcherLexicon` to the app test target's dependencies in `Package.swift` so those bundled loaders can be imported. `isolatedSettings` uses a temporary `UserDefaults(suiteName:)` and is set to enabled. Call `lexiconService.start()` **before** constructing the monitor: its catalog starts empty, and the test must actually use the bundled frequency data. Do not call the default `LexiconService()` or shared rule store.
+Use `LexiconService(baseLoader: { try BundledLexiconResources.loadBase() }, packsRootURL: temporaryRoot, computerTermsLoader: { try BundledLexiconResources.loadComputerTerms() }, computerTermsSettings: isolatedSettings)` and `UserRuleStore(fileURL: temporaryRoot/rules.json)`; add `TwigaSwitcherLexicon` to the app test target's dependencies in `Package.swift` so those bundled loaders can be imported. `isolatedSettings` uses a temporary `UserDefaults(suiteName:)` and is set to enabled. Call `lexiconService.start()` **before** constructing the monitor: its catalog starts empty, and the test must actually use the bundled frequency data. Do not call the default `LexiconService()` or shared rule store.
 
 ```swift
 final class VirtualEditor: EventPosting, InputSourceManaging {
@@ -215,17 +215,17 @@ Run: `swift test --filter TypingSessionDriverTests`. Expected: PASS; the synthet
 - [ ] **Step 5: Commit the driver**
 
 ```bash
-git add Package.swift Tests/LayoutSwitcherAppTests/TypingSessionDriver.swift Tests/LayoutSwitcherAppTests/TypingSessionDriverTests.swift
+git add Package.swift Tests/TwigaSwitcherAppTests/TypingSessionDriver.swift Tests/TwigaSwitcherAppTests/TypingSessionDriverTests.swift
 git commit -m "test: drive keyboard monitor through a virtual editor"
 ```
 
 ### Task 3: Preserve ambiguous punctuation inside wrong-layout words
 
 **Files:**
-- Modify: `Sources/LayoutSwitcherCore/Input/PhraseBuffer.swift`
-- Test: `Tests/LayoutSwitcherCoreTests/PhraseBufferTests.swift`
-- Test: `Tests/LayoutSwitcherCoreTests/InputPipelineTests.swift`
-- Test: `Tests/LayoutSwitcherAppTests/KeyboardEventNormalizerTests.swift`
+- Modify: `Sources/TwigaSwitcherCore/Input/PhraseBuffer.swift`
+- Test: `Tests/TwigaSwitcherCoreTests/PhraseBufferTests.swift`
+- Test: `Tests/TwigaSwitcherCoreTests/InputPipelineTests.swift`
+- Test: `Tests/TwigaSwitcherAppTests/KeyboardEventNormalizerTests.swift`
 
 **Interfaces:**
 - Consumes: the existing `InputEvent.boundary(String)` and `PhraseBuffer.resolve(_:disposition:)` contract.
@@ -287,22 +287,22 @@ Refine the provisional flag so consecutive punctuation needed by `k.,jq` and lea
 
 - [ ] **Step 4: Run the punctuation and core tests until green**
 
-Run: `swift test --filter PhraseBufferTests`, `swift test --filter InputPipelineTests`, and `swift test --filter LayoutSwitcherCoreTests`. Expected: all PASS, with no existing punctuation regression.
+Run: `swift test --filter PhraseBufferTests`, `swift test --filter InputPipelineTests`, and `swift test --filter TwigaSwitcherCoreTests`. Expected: all PASS, with no existing punctuation regression.
 
 - [ ] **Step 5: Commit the punctuation fix**
 
 ```bash
-git add Sources/LayoutSwitcherCore/Input/PhraseBuffer.swift Tests/LayoutSwitcherCoreTests/PhraseBufferTests.swift Tests/LayoutSwitcherCoreTests/InputPipelineTests.swift Tests/LayoutSwitcherAppTests/KeyboardEventNormalizerTests.swift
+git add Sources/TwigaSwitcherCore/Input/PhraseBuffer.swift Tests/TwigaSwitcherCoreTests/PhraseBufferTests.swift Tests/TwigaSwitcherCoreTests/InputPipelineTests.swift Tests/TwigaSwitcherAppTests/KeyboardEventNormalizerTests.swift
 git commit -m "fix: retain layout-dependent punctuation in words"
 ```
 
 ### Task 4: Both full-corpus scenarios and first-divergence repairs
 
 **Files:**
-- Create: `Tests/LayoutSwitcherAppTests/MixedTypingIntegrationTests.swift`
-- Modify as the first divergence proves necessary: `Sources/LayoutSwitcherCore/Input/PhraseBuffer.swift`, `Sources/LayoutSwitcherCore/Correction/InputPipeline.swift`, `Sources/LayoutSwitcherCore/Detection/LanguageDetector.swift`, `Sources/LayoutSwitcherApp/SystemIntegration/FocusedInputProcessor.swift`, `Sources/LayoutSwitcherApp/SystemIntegration/KeyboardEventNormalizer.swift`
-- Modify only for a genuine general/domain term: `Dictionaries/Computer Terms.layoutdict/entries.tsv` and `Sources/LayoutSwitcherLexicon/Resources/Lexicons/ComputerTerms/*`
-- Test at the matching boundary: `Tests/LayoutSwitcherCoreTests/InputPipelineTests.swift`, `Tests/LayoutSwitcherCoreTests/LanguageDetectorFrequencyTests.swift`, or `Tests/LayoutSwitcherAppTests/FocusedInputProcessorTests.swift`
+- Create: `Tests/TwigaSwitcherAppTests/MixedTypingIntegrationTests.swift`
+- Modify as the first divergence proves necessary: `Sources/TwigaSwitcherCore/Input/PhraseBuffer.swift`, `Sources/TwigaSwitcherCore/Correction/InputPipeline.swift`, `Sources/TwigaSwitcherCore/Detection/LanguageDetector.swift`, `Sources/TwigaSwitcherApp/SystemIntegration/FocusedInputProcessor.swift`, `Sources/TwigaSwitcherApp/SystemIntegration/KeyboardEventNormalizer.swift`
+- Modify only for a genuine general/domain term: `Dictionaries/Computer Terms.layoutdict/entries.tsv` and `Sources/TwigaSwitcherLexicon/Resources/Lexicons/ComputerTerms/*`
+- Test at the matching boundary: `Tests/TwigaSwitcherCoreTests/InputPipelineTests.swift`, `Tests/TwigaSwitcherCoreTests/LanguageDetectorFrequencyTests.swift`, or `Tests/TwigaSwitcherAppTests/FocusedInputProcessorTests.swift`
 
 **Interfaces:**
 - Consumes: `TypingSessionDriver.type(_:mode:) -> TypingTrace` and the unchanged literal `MixedTypingCorpus.expected`.
@@ -356,9 +356,9 @@ For a first divergence in a punctuation-bearing word, add a literal raw-stream a
 ```bash
 swift run LexiconCompiler compile-tsv \
   --input "Dictionaries/Computer Terms.layoutdict/entries.tsv" \
-  --output-directory Sources/LayoutSwitcherLexicon/Resources/Lexicons/ComputerTerms \
-  --manifest Sources/LayoutSwitcherLexicon/Resources/Lexicons/ComputerTerms/manifest.json \
-  --source-name dev.layoutswitcher.dictionary.computer-terms \
+  --output-directory Sources/TwigaSwitcherLexicon/Resources/Lexicons/ComputerTerms \
+  --manifest Sources/TwigaSwitcherLexicon/Resources/Lexicons/ComputerTerms/manifest.json \
+  --source-name dev.twigaswitcher.dictionary.computer-terms \
   --source-version 1.0.0 --source-sha256 project-authored \
   --license CC0-1.0 --minimum-score 0 --subject-terms
 ```
@@ -380,7 +380,7 @@ Run: `swift test --filter MixedTypingIntegrationTests`; expected: two PASS, 24 l
 - [ ] **Step 5: Commit the complete corpus behavior**
 
 ```bash
-git add Tests/LayoutSwitcherAppTests/MixedTypingIntegrationTests.swift Tests/LayoutSwitcherCoreTests Sources/LayoutSwitcherCore Sources/LayoutSwitcherApp Sources/LayoutSwitcherLexicon Dictionaries
+git add Tests/TwigaSwitcherAppTests/MixedTypingIntegrationTests.swift Tests/TwigaSwitcherCoreTests Sources/TwigaSwitcherCore Sources/TwigaSwitcherApp Sources/TwigaSwitcherLexicon Dictionaries
 git commit -m "test: cover sustained mixed-layout typing in both modes"
 ```
 

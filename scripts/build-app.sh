@@ -11,7 +11,7 @@ bin_dir=$(swift build -c release --show-bin-path)
 
 rm -rf "$app_path"
 mkdir -p "$app_path/Contents/MacOS" "$app_path/Contents/Resources"
-cp "$bin_dir/LayoutSwitcherApp" "$app_path/Contents/MacOS/TwigaSwitcher"
+cp "$bin_dir/TwigaSwitcherApp" "$app_path/Contents/MacOS/TwigaSwitcher"
 cp "$script_dir/Info.plist" "$app_path/Contents/Info.plist"
 
 icon_source="$project_dir/Resources/AppIcon.png"
@@ -26,12 +26,12 @@ done
 iconutil -c icns "$iconset" -o "$app_path/Contents/Resources/AppIcon.icns"
 rm -rf "$iconset"
 
-app_resource_bundle="$bin_dir/TwigaSwitcher_LayoutSwitcherApp.bundle"
+app_resource_bundle="$bin_dir/TwigaSwitcher_TwigaSwitcherApp.bundle"
 if [[ -d "$app_resource_bundle" ]]; then
   cp -R "$app_resource_bundle" "$app_path/Contents/Resources/"
 fi
 
-for bundle_name in TwigaSwitcher_LayoutSwitcherLexicon.bundle; do
+for bundle_name in TwigaSwitcher_TwigaSwitcherLexicon.bundle; do
   resource_bundle="$bin_dir/$bundle_name"
   if [[ ! -d "$resource_bundle" ]]; then
       print -u2 -- "Missing required SwiftPM resource bundle: $resource_bundle"

@@ -1,7 +1,7 @@
 import Darwin
 import Foundation
-import LayoutSwitcherCore
-import LayoutSwitcherLexicon
+import TwigaSwitcherCore
+import TwigaSwitcherLexicon
 
 @main
 enum LexiconBenchmarkMain {
@@ -15,11 +15,11 @@ enum LexiconBenchmarkMain {
                 (english, .english, "development"),
                 (english, .english, "application"),
                 (english, .english, "configuration"),
-                (english, .english, "unfindable-layout-switcher-token"),
+                (english, .english, "unfindable-twiga-switcher-token"),
                 (russian, .russian, "разработка"),
                 (russian, .russian, "приложение"),
                 (russian, .russian, "конфигурация"),
-                (russian, .russian, "несуществующий-термин-layout-switcher"),
+                (russian, .russian, "несуществующий-термин-twiga-switcher"),
             ]
 
             for sample in samples {

@@ -1,8 +1,8 @@
 Computer Terms dictionary
-Copyright (c) 2026 LayoutSwitcher contributors
+Copyright (c) 2026 TwigaSwitcher contributors
 
 The terminology and frequency scores in this package were authored for the
-LayoutSwitcher project and are dedicated to the public domain under CC0 1.0.
+TwigaSwitcher project and are dedicated to the public domain under CC0 1.0.
 No third-party word list was copied to create this package.
 
 Scoring rubric:

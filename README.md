@@ -22,6 +22,10 @@ open "build/Twiga Switcher.app"
 
 В **Настройки… → Язык интерфейса** доступны «Как в macOS», «Русский» и «Английский». По умолчанию используется основной язык macOS; если он не русский и не английский, приложение показывает английский интерфейс. Выбор сохраняется и применяется сразу ко всем окнам и меню, без перезапуска. Имена пользовательских словарей и слова в правилах остаются такими, какими их ввёл пользователь.
 
+## Автозапуск
+
+В **Настройки… → Автозапуск** можно включить или выключить **Запускать при входе в систему**. По умолчанию автозапуск выключен. После включения macOS запускает Twiga Switcher при входе в учётную запись; выключение отменяет последующие автоматические запуски, не закрывая текущее приложение. Настройка хранится в macOS и отражает изменения в системных объектах входа. Если macOS требует подтверждения, в приложении появится подсказка и кнопка открытия системных настроек. Используйте собранное приложение `.app`, а не запуск через `swift run`.
+
 ## Проверка
 
 В обычном редактируемом поле:
@@ -36,7 +40,7 @@ open "build/Twiga Switcher.app"
 
 ### Длинная проверка смешанного ввода
 
-Буквальный текст из 24 строк находится в [`MixedTypingCorpus.swift`](Tests/LayoutSwitcherAppTests/MixedTypingCorpus.swift). Два теста проводят его по физическим клавишам через `KeyboardMonitor` и проверяют результат после каждой строки, а не только после отдельных слов:
+Буквальный текст из 24 строк находится в [`MixedTypingCorpus.swift`](Tests/TwigaSwitcherAppTests/MixedTypingCorpus.swift). Два теста проводят его по физическим клавишам через `KeyboardMonitor` и проверяют результат после каждой строки, а не только после отдельных слов:
 
 ```bash
 swift test --filter testTwentyFourLinesWithoutManualLayoutSwitches
@@ -81,7 +85,7 @@ en	4600	continuous delivery
 ru	4700	база данных
 ```
 
-Импорт ограничен 50 МиБ, 1 000 000 записей и 4 КиБ на строку. Пакет сначала полностью проверяется и компилируется, после чего каталог заменяется атомарно. Файлы хранятся в `~/Library/Application Support/LayoutSwitcher/Dictionaries`.
+Импорт ограничен 50 МиБ, 1 000 000 записей и 4 КиБ на строку. Пакет сначала полностью проверяется и компилируется, после чего каталог заменяется атомарно. Файлы хранятся в `~/Library/Application Support/TwigaSwitcher/Dictionaries`.
 
 ## Локальное обучение
 
@@ -97,13 +101,13 @@ ru	4700	база данных
 
 Приложение обрабатывает ввод локально, не ведёт журнал нажатий или диагностические счётчики ввода и не отправляет данные по сети. Текущий фрагмент текста и последнее исправление нужны только в оперативной памяти для автопереключения и отмены.
 
-Только после явного подтверждения правила в диалоге на диске сохраняются нормализованные пары `исходное → исправленное` и действие `always`/`never` в `~/Library/Application Support/LayoutSwitcher/rules.json`. Окружающий текст, история набора и содержимое полей не сохраняются.
+Только после явного подтверждения правила в диалоге на диске сохраняются нормализованные пары `исходное → исправленное` и действие `always`/`never` в `~/Library/Application Support/TwigaSwitcher/rules.json`. Окружающий текст, история набора и содержимое полей не сохраняются.
 
 ## Данные, воспроизводимость и скорость
 
 Базовые данные получены из закреплённого официального wheel `wordfreq 3.1.1` с проверкой SHA-256. Данные распространяются под CC BY-SA 4.0, программный пакет wordfreq — под Apache-2.0. Computer Terms составлен специально для проекта и распространяется под CC0-1.0; исходный TSV доступен в `Dictionaries/Computer Terms.layoutdict`.
 
-[Лицензии словарей, сведения об авторах и изменениях данных](Sources/LayoutSwitcherLexicon/Resources/Licenses/README.md) хранятся отдельно от лицензии кода и включаются в собранное приложение. Полные тексты Apache-2.0, CC BY-SA 4.0 и CC0-1.0 находятся в том же каталоге. Экспортируемый пакет Computer Terms также содержит `LICENSE.txt` и `NOTICE.txt`.
+[Лицензии словарей, сведения об авторах и изменениях данных](Sources/TwigaSwitcherLexicon/Resources/Licenses/README.md) хранятся отдельно от лицензии кода и включаются в собранное приложение. Полные тексты Apache-2.0, CC BY-SA 4.0 и CC0-1.0 находятся в том же каталоге. Экспортируемый пакет Computer Terms также содержит `LICENSE.txt` и `NOTICE.txt`.
 
 ```bash
 # Воспроизвести базовые индексы (создаёт изолированное Python-окружение)
@@ -112,9 +116,9 @@ scripts/generate-base-lexicons.sh
 # Пересобрать встроенный предметный индекс
 swift run LexiconCompiler compile-tsv \
   --input "Dictionaries/Computer Terms.layoutdict/entries.tsv" \
-  --output-directory Sources/LayoutSwitcherLexicon/Resources/Lexicons/ComputerTerms \
-  --manifest Sources/LayoutSwitcherLexicon/Resources/Lexicons/ComputerTerms/manifest.json \
-  --source-name dev.layoutswitcher.dictionary.computer-terms \
+  --output-directory Sources/TwigaSwitcherLexicon/Resources/Lexicons/ComputerTerms \
+  --manifest Sources/TwigaSwitcherLexicon/Resources/Lexicons/ComputerTerms/manifest.json \
+  --source-name dev.twigaswitcher.dictionary.computer-terms \
   --source-version 1.0.0 --source-sha256 project-authored \
   --license CC0-1.0 --minimum-score 0 --subject-terms
 
