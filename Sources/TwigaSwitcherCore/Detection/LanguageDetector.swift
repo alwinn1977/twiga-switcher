@@ -58,12 +58,14 @@ public struct LanguageDetector<Lexicon: FrequencyLexicon, Rules: UserCorrectionR
     }
 
     func evaluate(original: String, conversion: LayoutConversion) -> CorrectionEvaluation {
-        let original = TermNormalizer.normalize(original)
+        let isLowercaseSingleLetter = original.count == 1 && original.first?.isLowercase == true
+            && conversion.text.count == 1 && conversion.text.first?.isLetter == true
+        let source = TermNormalizer.normalize(original)
         let candidate = TermNormalizer.normalize(conversion.text)
         let originalLanguage: Language = conversion.targetLayout == .russian ? .english : .russian
         let targetLanguage: Language = conversion.targetLayout == .russian ? .russian : .english
 
-        switch rules.disposition(source: original, candidate: candidate) {
+        switch rules.disposition(source: source, candidate: candidate) {
         case .never:
             return .init(decision: .unchanged, offersManualCorrection: true)
         case .always:
@@ -75,15 +77,22 @@ public struct LanguageDetector<Lexicon: FrequencyLexicon, Rules: UserCorrectionR
             break
         }
 
-        let originalMatch = lexicon.lookup(original, language: originalLanguage)
+        let originalMatch = lexicon.lookup(source, language: originalLanguage)
         let candidateMatch = lexicon.lookup(candidate, language: targetLanguage)
         let originalScore = adjustedScore(originalMatch)
         let candidateScore = adjustedScore(candidateMatch)
-        if originalMatch.isStrictPrefix || candidateMatch.isStrictPrefix {
+        // Lowercase standalone letters use the usual frequency margin. Uppercase
+        // initials still wait for context, and dotted abbreviations stay buffered.
+        if !isLowercaseSingleLetter && (originalMatch.isStrictPrefix || candidateMatch.isStrictPrefix) {
             return .init(
                 decision: .deferred,
                 offersManualCorrection: !(originalScore != nil && candidateScore == nil)
             )
+        }
+
+        if originalScore == nil, candidateScore == nil,
+           let decision = singleLetterPhraseDecision(original: original, conversion: conversion) {
+            return .init(decision: decision, offersManualCorrection: true)
         }
 
         guard let candidateScore,
@@ -101,6 +110,43 @@ public struct LanguageDetector<Lexicon: FrequencyLexicon, Rules: UserCorrectionR
             decision: .correct(text: conversion.text, targetLayout: conversion.targetLayout),
             offersManualCorrection: true
         )
+    }
+
+    private func singleLetterPhraseDecision(original: String, conversion: LayoutConversion) -> CorrectionDecision? {
+        let sourceWords = original.split(separator: " ").map(String.init)
+        let targetWords = conversion.text.split(separator: " ").map(String.init)
+        let prefixCount = targetWords.dropLast().prefix { $0.count == 1 && $0.allSatisfy(\.isLetter) }.count
+        guard prefixCount > 0, sourceWords.count == targetWords.count else { return nil }
+        let sourceLanguage: Language = conversion.targetLayout == .russian ? .english : .russian
+        let targetLanguage: Language = conversion.targetLayout == .russian ? .russian : .english
+
+        // A one-letter word can also prefix an initialism (e.g. B.B).
+        // Use the next word as evidence without requiring a dictionary phrase.
+        for (sourceWord, targetWord) in zip(sourceWords.prefix(prefixCount), targetWords.prefix(prefixCount)) {
+            let source = TermNormalizer.normalize(sourceWord)
+            let target = TermNormalizer.normalize(targetWord)
+            switch rules.disposition(source: source, candidate: target) {
+            case .never: return nil
+            case .always: continue
+            case nil: break
+            }
+            guard let targetScore = adjustedScore(lexicon.lookup(target, language: targetLanguage)),
+                  targetScore >= Self.minimumTargetScore else { return nil }
+            if let sourceScore = adjustedScore(lexicon.lookup(source, language: sourceLanguage)),
+               targetScore - sourceScore < Self.ambiguityMargin { return nil }
+        }
+
+        let following = evaluate(original: sourceWords.dropFirst(prefixCount).joined(separator: " "), conversion: .init(
+            text: targetWords.dropFirst(prefixCount).joined(separator: " "), targetLayout: conversion.targetLayout
+        ))
+        switch following.decision {
+        case .correct:
+            return .correct(text: conversion.text, targetLayout: conversion.targetLayout)
+        case .deferred:
+            return .deferred
+        case .unchanged:
+            return nil
+        }
     }
 
     private func adjustedScore(_ match: LexiconMatch) -> Int? {

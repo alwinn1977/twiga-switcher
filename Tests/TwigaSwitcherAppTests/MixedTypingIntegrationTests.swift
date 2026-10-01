@@ -2,6 +2,76 @@ import TwigaSwitcherCore
 import XCTest
 
 final class MixedTypingIntegrationTests: XCTestCase {
+    func testLowercaseRussianConnectivesBetweenEnglishWords() throws {
+        for expected in ["windows и linux ", "elephant а mouse ", "cat и dog "] {
+            let session = try TypingSessionDriver(initialLayout: .english)
+            let trace = try session.type(expected, mode: .automatic)
+            XCTAssertEqual(trace.editorText, expected, trace.firstDivergence)
+        }
+    }
+
+    func testEnglishSingleLetterWordsAndLowercaseInitialismsStayUnchanged() throws {
+        for expected in ["a cat ", "i write ", "b.b hello ", "f.b.i hello "] {
+            let session = try TypingSessionDriver(initialLayout: .english)
+            let trace = try session.type(expected, mode: .automatic)
+            XCTAssertEqual(trace.editorText, expected, trace.firstDivergence)
+            XCTAssertTrue(trace.corrections.isEmpty)
+        }
+    }
+
+    func testReportedRussianConnectivesBetweenEnglishAnimalNames() throws {
+        let expected = "У попа была собака и elephant а также мышь and rat и кролик "
+        let session = try TypingSessionDriver(initialLayout: .english)
+        let trace = try session.type(expected, mode: .automatic)
+        XCTAssertEqual(trace.editorText, expected, trace.firstDivergence)
+    }
+
+    func testSingleLetterRussianWordsAtSentenceStart() throws {
+        for expected in [
+            "А потом привет.\n", "И потом привет.\n", "О проекте.\n", "У меня привет.\n",
+            "В проекте.\n", "К проекту.\n", "С проектом.\n", "Я пишу.\n"
+        ] {
+            let session = try TypingSessionDriver(initialLayout: .english)
+            let trace = try session.type(expected, mode: .automatic)
+            XCTAssertEqual(trace.editorText, expected, trace.firstDivergence)
+        }
+    }
+
+    func testSingleLetterRussianWordsInMixedTextAndBeforePunctuation() throws {
+        for expected in [
+            "Linux а потом привет.\n", "Linux и в проекте.\n", "И у меня привет!\n",
+            "А привет, потом привет.\n", "С меню.\n", "А я пишу.\n"
+        ] {
+            let session = try TypingSessionDriver(initialLayout: .english)
+            let trace = try session.type(expected, mode: .automatic)
+            XCTAssertEqual(trace.editorText, expected, trace.firstDivergence)
+        }
+    }
+
+    func testSingleLetterEnglishWordsAndInitialismsStayUnchanged() throws {
+        for expected in ["A hello.\n", "B hello.\n", "B B hello.\n", "C developer.\n", "F test.\n", "B.B hello.\n"] {
+            let session = try TypingSessionDriver(initialLayout: .english)
+            let trace = try session.type(expected, mode: .automatic)
+            XCTAssertEqual(trace.editorText, expected, trace.firstDivergence)
+            XCTAssertTrue(trace.corrections.isEmpty)
+        }
+    }
+
+    func testSingleLetterRussianWordBeforeMultiwordDictionaryTerm() throws {
+        let expected = "И искусственный интеллект.\n"
+        let session = try TypingSessionDriver(initialLayout: .english)
+        let trace = try session.type(expected, mode: .automatic)
+        XCTAssertEqual(trace.editorText, expected, trace.firstDivergence)
+    }
+
+    func testSingleLetterRussianWordsTypedInCorrectLayoutStayUnchanged() throws {
+        let expected = "А потом привет. И потом привет. О проекте. У меня привет. В проекте. К проекту. С проектом. Я пишу.\n"
+        let session = try TypingSessionDriver(initialLayout: .russian)
+        let trace = try session.type(expected, mode: .manualAtScriptChanges)
+        XCTAssertEqual(trace.editorText, expected, trace.firstDivergence)
+        XCTAssertTrue(trace.corrections.isEmpty)
+    }
+
     func testTwentyFourLinesWithoutManualLayoutSwitches() throws {
         let session = try TypingSessionDriver(initialLayout: .english)
         let trace = try session.type(MixedTypingCorpus.expected, mode: .automatic)

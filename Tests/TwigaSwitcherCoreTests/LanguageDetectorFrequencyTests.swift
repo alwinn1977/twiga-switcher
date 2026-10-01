@@ -24,6 +24,75 @@ private struct FixtureRules: UserCorrectionRuleLookingUp {
 }
 
 final class LanguageDetectorFrequencyTests: XCTestCase {
+    func testLowercaseSingleLetterUsesFrequencyDespiteInitialismPrefixes() {
+        let detector = shortWordDetector()
+        XCTAssertEqual(
+            detector.decision(original: "b", conversion: .init(text: "и", targetLayout: .russian)),
+            .correct(text: "и", targetLayout: .russian)
+        )
+        XCTAssertEqual(
+            detector.decision(original: "и", conversion: .init(text: "b", targetLayout: .english)),
+            .unchanged
+        )
+    }
+
+    func testLowercaseSingleLetterRespectsNeverRule() {
+        let detector = shortWordDetector(rules: ShortWordNeverRule())
+        XCTAssertEqual(
+            detector.decision(original: "b", conversion: .init(text: "и", targetLayout: .russian)),
+            .unchanged
+        )
+    }
+
+    func testRepeatedUppercaseInitialsKeepWaitingForContext() {
+        let detector = shortWordDetector()
+        XCTAssertEqual(
+            detector.decision(original: "B B", conversion: .init(text: "И И", targetLayout: .russian)),
+            .deferred
+        )
+    }
+
+    func testSingleLetterPhraseUsesFollowingWordWithoutDictionaryPhraseEntry() {
+        let detector = shortWordDetector()
+        XCTAssertEqual(
+            detector.decision(original: "B ghbdtn", conversion: .init(text: "И привет", targetLayout: .russian)),
+            .correct(text: "И привет", targetLayout: .russian)
+        )
+        XCTAssertEqual(
+            detector.decision(original: "B", conversion: .init(text: "И", targetLayout: .russian)),
+            .deferred
+        )
+    }
+
+    func testSingleLetterPhraseDoesNotConvertRecognizedOrUnknownFollowingWord() {
+        let detector = shortWordDetector()
+        for (source, candidate) in [("B hello", "И руддщ"), ("B qzq", "И йяй")] {
+            XCTAssertEqual(
+                detector.decision(original: source, conversion: .init(text: candidate, targetLayout: .russian)),
+                .unchanged
+            )
+        }
+    }
+
+    func testSingleLetterPhraseRespectsPerWordNeverRule() {
+        let detector = shortWordDetector(rules: ShortWordNeverRule())
+        XCTAssertEqual(
+            detector.decision(original: "B ghbdtn", conversion: .init(text: "И привет", targetLayout: .russian)),
+            .unchanged
+        )
+    }
+
+    private func shortWordDetector<Rules: UserCorrectionRuleLookingUp>(
+        rules: Rules = NoUserCorrectionRules()
+    ) -> LanguageDetector<FixtureFrequencyLexicon, Rules> {
+        LanguageDetector(lexicon: FixtureFrequencyLexicon(entries: [
+            .init(text: "b", language: .english, match: .init(score: 5_350, isSubjectTerm: false, isStrictPrefix: true)),
+            .init(text: "и", language: .russian, match: .init(score: 7_470, isSubjectTerm: false, isStrictPrefix: true)),
+            .init(text: "привет", language: .russian, match: .init(score: 5_100, isSubjectTerm: false, isStrictPrefix: false)),
+            .init(text: "hello", language: .english, match: .init(score: 5_100, isSubjectTerm: false, isStrictPrefix: false))
+        ]), rules: rules)
+    }
+
     func testFrequencyPolicyUsesThresholdAndAmbiguityMargin() {
         assertDecision(
             original: "ghbdtn", originalScore: nil,
@@ -133,5 +202,11 @@ final class LanguageDetectorFrequencyTests: XCTestCase {
             file: file,
             line: line
         )
+    }
+}
+
+private struct ShortWordNeverRule: UserCorrectionRuleLookingUp {
+    func disposition(source: String, candidate: String) -> UserCorrectionDisposition? {
+        source == "b" && candidate == "и" ? .never : nil
     }
 }
