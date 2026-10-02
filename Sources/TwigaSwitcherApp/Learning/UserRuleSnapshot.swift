@@ -13,6 +13,17 @@ public struct UserRule: Codable, Equatable, Hashable, Sendable, Identifiable {
         self.candidate = TermNormalizer.normalize(candidate)
         self.disposition = disposition
     }
+
+    private enum CodingKeys: String, CodingKey { case source, candidate, disposition }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            source: try container.decode(String.self, forKey: .source),
+            candidate: try container.decode(String.self, forKey: .candidate),
+            disposition: try container.decode(UserCorrectionDisposition.self, forKey: .disposition)
+        )
+    }
 }
 
 public final class UserRuleSnapshot: @unchecked Sendable, UserCorrectionRuleLookingUp {
@@ -20,7 +31,14 @@ public final class UserRuleSnapshot: @unchecked Sendable, UserCorrectionRuleLook
     private let byID: [String: UserCorrectionDisposition]
 
     public init(rules: [UserRule]) {
-        self.rules = rules.sorted {
+        var uniqueRules: [String: UserRule] = [:]
+        for rule in rules {
+            // Conflicting persisted duplicates must not override a prohibition.
+            if uniqueRules[rule.id]?.disposition != .never {
+                uniqueRules[rule.id] = rule
+            }
+        }
+        self.rules = uniqueRules.values.sorted {
             ($0.source, $0.candidate, $0.disposition.rawValue)
                 < ($1.source, $1.candidate, $1.disposition.rawValue)
         }

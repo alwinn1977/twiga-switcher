@@ -91,8 +91,7 @@ public struct InputPipeline<Lexicon: FrequencyLexicon, Rules: UserCorrectionRule
             }
             if let conversion = converter.convert(candidate.text) {
                 let pair = CorrectionPair(source: candidate.text, candidate: conversion.text)
-                let evaluation = detector.evaluate(original: candidate.text, conversion: conversion)
-                switch evaluation.decision {
+                switch detector.decision(original: candidate.text, conversion: conversion) {
                 case let .correct(text, layout):
                     latestDecisionPair = pair
                     buffer.resolve(result, disposition: .corrected)
@@ -103,18 +102,13 @@ public struct InputPipeline<Lexicon: FrequencyLexicon, Rules: UserCorrectionRule
                         targetLayout: layout
                     ))
                 case .deferred:
-                    if evaluation.offersManualCorrection {
-                        latestDecisionPair = pair
-                    }
                     if let last = candidates.last {
                         recentWord = RecentWord(candidate: last, delimiter: delimiter)
                     }
                     buffer.resolve(result, disposition: .deferForPhrase(candidate))
                     return .passThrough
                 case .unchanged:
-                    if latestDecisionPair == nil, evaluation.offersManualCorrection {
-                        latestDecisionPair = pair
-                    }
+                    break
                 }
             }
             if let bareConversion,
@@ -159,8 +153,7 @@ public struct InputPipeline<Lexicon: FrequencyLexicon, Rules: UserCorrectionRule
                 } else {
                     candidate = .init(
                         text: String(current.text.dropLast(recentWord.delimiter.count)),
-                        physicalKeyCount: current.physicalKeyCount - recentWord.delimiter.count,
-                        tokenCount: current.tokenCount
+                        physicalKeyCount: current.physicalKeyCount - recentWord.delimiter.count
                     )
                     delimiter = recentWord.delimiter
                 }
@@ -235,7 +228,7 @@ public struct InputPipeline<Lexicon: FrequencyLexicon, Rules: UserCorrectionRule
             recentWord = nil
         } else {
             recentWord = RecentWord(candidate: .init(text: plan.replacement,
-                physicalKeyCount: plan.replacement.count, tokenCount: 1), delimiter: plan.delimiter)
+                physicalKeyCount: plan.replacement.count), delimiter: plan.delimiter)
         }
     }
 

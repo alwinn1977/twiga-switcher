@@ -3,7 +3,16 @@ set -euo pipefail
 
 script_dir=${0:A:h}
 project_dir=${script_dir:h}
-app_path="$project_dir/build/Twiga Switcher.app"
+build_directory="$project_dir/build"
+public_build=false
+if [[ "${1:-}" == "--public" && $# == 1 ]]; then
+  public_build=true
+  build_directory="$build_directory/public"
+elif (( $# != 0 )); then
+  print -u2 -- "Usage: $0 [--public]"
+  exit 2
+fi
+app_path="$build_directory/Twiga Switcher.app"
 
 cd "$project_dir"
 swift build -c release
@@ -13,9 +22,11 @@ rm -rf "$app_path"
 mkdir -p "$app_path/Contents/MacOS" "$app_path/Contents/Resources"
 cp "$bin_dir/TwigaSwitcherApp" "$app_path/Contents/MacOS/TwigaSwitcher"
 cp "$script_dir/Info.plist" "$app_path/Contents/Info.plist"
+cp "$project_dir/LICENSE" "$app_path/Contents/Resources/LICENSE.txt"
+cp "$project_dir/NOTICE" "$app_path/Contents/Resources/NOTICE.txt"
 
 icon_source="$project_dir/Resources/AppIcon.png"
-iconset="$project_dir/build/AppIcon.iconset"
+iconset="$build_directory/AppIcon.iconset"
 rm -rf "$iconset"
 mkdir -p "$iconset"
 for icon_size in 16 32 128 256 512; do
@@ -26,12 +37,7 @@ done
 iconutil -c icns "$iconset" -o "$app_path/Contents/Resources/AppIcon.icns"
 rm -rf "$iconset"
 
-app_resource_bundle="$bin_dir/TwigaSwitcher_TwigaSwitcherApp.bundle"
-if [[ -d "$app_resource_bundle" ]]; then
-  cp -R "$app_resource_bundle" "$app_path/Contents/Resources/"
-fi
-
-for bundle_name in TwigaSwitcher_TwigaSwitcherLexicon.bundle; do
+for bundle_name in TwigaSwitcher_TwigaSwitcherApp.bundle TwigaSwitcher_TwigaSwitcherLexicon.bundle; do
   resource_bundle="$bin_dir/$bundle_name"
   if [[ ! -d "$resource_bundle" ]]; then
       print -u2 -- "Missing required SwiftPM resource bundle: $resource_bundle"
@@ -41,15 +47,17 @@ for bundle_name in TwigaSwitcher_TwigaSwitcherLexicon.bundle; do
 done
 
 plutil -lint "$app_path/Contents/Info.plist"
-codesign \
-  --force \
-  --deep \
-  --sign - \
-  --requirements '=designated => identifier "dev.twigaswitcher.prototype"' \
-  "$app_path"
+signing_arguments=(--force --deep --sign -)
+if [[ "$public_build" == false ]]; then
+  signing_arguments+=(--requirements '=designated => identifier "dev.twigaswitcher.prototype"')
+fi
+codesign "${signing_arguments[@]}" "$app_path"
+codesign --verify --deep --strict "$app_path"
 
 # Finder may have cached the bundle while its executable and icon were being
 # replaced. Register the completed bundle and notify it after all files exist.
-/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$app_path"
+if [[ "$public_build" == false ]]; then
+  /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$app_path"
+fi
 touch "$app_path"
 print -r -- "$app_path"

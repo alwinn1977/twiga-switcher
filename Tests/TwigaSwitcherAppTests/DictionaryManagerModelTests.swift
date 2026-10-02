@@ -62,7 +62,7 @@ final class DictionaryManagerModelTests: XCTestCase {
         XCTAssertNotNil(model.rows.first { $0.id == row.id })
         confirmation.allowed = true
         await model.remove(row)
-        XCTAssertNil(model.rows.first { $0.id == row.id }, model.statusMessage ?? "no status")
+        XCTAssertNil(model.rows.first { $0.id == row.id }, model.statusMessage(in: .english) ?? "no status")
     }
 
     @MainActor
@@ -73,7 +73,7 @@ final class DictionaryManagerModelTests: XCTestCase {
 
         await model.importPackage(at: package)
 
-        XCTAssertTrue(model.statusMessage?.contains("Import failed") == true)
+        XCTAssertTrue(model.statusMessage(in: .english)?.contains("Import failed") == true)
         XCTAssertTrue(model.statusMessage(in: .russian)?.contains("Ошибка импорта") == true)
         XCTAssertEqual(model.rows.filter { !$0.isBuiltIn }.count, 0)
     }

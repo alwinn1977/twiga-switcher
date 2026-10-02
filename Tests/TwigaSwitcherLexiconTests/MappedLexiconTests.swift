@@ -4,6 +4,47 @@ import TwigaSwitcherCore
 @testable import TwigaSwitcherLexicon
 
 final class MappedLexiconTests: XCTestCase {
+    func testCompletionThresholdIsLimitedToMatchingPrefixAndIncludesExactWords() throws {
+        let url = try compileFixture([
+            .init(language: .english, key: "alpha", score: 8_000, flags: []),
+            .init(language: .english, key: "prefix", score: 0, flags: []),
+            .init(language: .english, key: "prefix one", score: 3_999, flags: []),
+            .init(language: .english, key: "prefix two", score: 4_000, flags: []),
+            .init(language: .english, key: "prefixes", score: 5_000, flags: []),
+            .init(language: .english, key: "café", score: 4_200, flags: []),
+            .init(language: .english, key: "zulu", score: 8_000, flags: [])
+        ])
+        let lexicon = try MappedLexicon(url: url, expectedLanguage: .english)
+        XCTAssertTrue(lexicon.hasCompletion(for: "prefix", language: .english, minimumScore: 5_000))
+        XCTAssertFalse(lexicon.hasCompletion(for: "prefix", language: .english, minimumScore: 5_001))
+        XCTAssertTrue(lexicon.hasCompletion(for: "prefix ", language: .english, minimumScore: 4_000))
+        XCTAssertFalse(lexicon.hasCompletion(for: "prefix one", language: .english, minimumScore: 4_000))
+        XCTAssertTrue(lexicon.hasCompletion(for: "prefix two", language: .english, minimumScore: 4_000))
+        XCTAssertTrue(lexicon.hasCompletion(for: "cafe\u{301}", language: .english, minimumScore: 4_200))
+        XCTAssertFalse(lexicon.hasCompletion(for: "prefiy", language: .english, minimumScore: -1))
+    }
+
+    func testEmptyIndexHasNoCompletionAtAnyThreshold() throws {
+        let lexicon = try MappedLexicon(url: compileFixture([]), expectedLanguage: .english)
+        XCTAssertFalse(lexicon.hasCompletion(for: "word", language: .english, minimumScore: -1))
+    }
+
+    func testLargeLowFrequencyPrefixDoesNotStallRepeatedCompletionQueries() throws {
+        let entries = (0..<100_000).map {
+            LexiconEntry(language: .english, key: "prefix\(String(format: "%06d", $0))", score: 0, flags: [])
+        }
+        let url = try compileFixture(entries)
+        let lexicon = try MappedLexicon(url: url, expectedLanguage: .english)
+        let start = ProcessInfo.processInfo.systemUptime
+
+        for _ in 0..<50 {
+            XCTAssertFalse(lexicon.hasCompletion(for: "prefix", language: .english, minimumScore: 4_000))
+        }
+
+        XCTAssertLessThan(ProcessInfo.processInfo.systemUptime - start, 0.25,
+                          "Completion lookup must not scan every word sharing the prefix")
+    }
+
     func testWordCompletionUsesFrequencyAndLanguageWithoutChangingPhrasePrefixMeaning() throws {
         let url = try compileFixture([
             .init(language: .english, key: "hello", score: 5_000, flags: []),

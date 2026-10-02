@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "identifier": "org.example.my-computer-terms",
+  "name": "Мои компьютерные термины",
+  "version": "1.0.0",
+  "description": "Пример подключаемого словаря технологий и рабочих выражений",
+  "attribution": {
+    "source": "Пример словаря Twiga Switcher",
+    "license": "GPL-3.0-only"
+  }
+}

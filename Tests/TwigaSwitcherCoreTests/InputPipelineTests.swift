@@ -8,7 +8,6 @@ private struct PipelineLexicon: FrequencyLexicon {
     }
 
     let entries: [Language: [String: Entry]]
-    var maximumPhraseWords: Int { 3 }
 
     func lookup(_ text: String, language: Language) -> LexiconMatch {
         let key = TermNormalizer.normalize(text)
@@ -308,11 +307,14 @@ final class InputPipelineTests: XCTestCase {
         XCTAssertNil(pipeline.latestDecisionPair)
     }
 
-    func testUnknownPairRemainsAvailableForManualLearning() {
+    func testForcedUnknownWordBecomesAvailableForManualLearning() {
         var pipeline = makePipeline()
         feed("qzq", to: &pipeline)
 
         XCTAssertEqual(pipeline.handle(.boundary(" "), focusIsSafe: true), .passThrough)
+        XCTAssertEqual(pipeline.forceCorrection(focusIsSafe: true), .replace(.init(
+            deleteKeyCount: 4, replacement: "йяй", delimiter: " ", targetLayout: .russian
+        )))
         XCTAssertEqual(
             pipeline.latestDecisionPair,
             CorrectionPair(source: "qzq", candidate: "йяй")
@@ -347,6 +349,7 @@ final class InputPipelineTests: XCTestCase {
         var pipeline = makePipeline()
         feed("qzq", to: &pipeline)
         _ = pipeline.handle(.boundary(" "), focusIsSafe: true)
+        _ = pipeline.forceCorrection(focusIsSafe: true)
         XCTAssertNotNil(pipeline.latestDecisionPair)
 
         pipeline.reset()

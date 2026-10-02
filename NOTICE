@@ -1,0 +1,28 @@
+Twiga Switcher
+Copyright (C) 2026 Алексей Винокуров (Alexey Vinokurov)
+
+SPDX-License-Identifier: GPL-3.0-only
+
+Twiga Switcher is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, version 3 of the License only.
+
+Twiga Switcher is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details, including the limitation
+of liability in sections 15–17 to the extent permitted by applicable law.
+
+You should have received a copy of the GNU General Public License
+along with Twiga Switcher. If not, see <https://www.gnu.org/licenses/>.
+
+Corresponding source: https://github.com/alwinn1977/twiga-switcher
+When distributing a binary, provide the corresponding source for that
+version in accordance with section 6 of the GNU General Public License.
+
+This notice applies to the original code and other original project
+materials except where a separate license is specified. Dictionary data
+and third-party materials retain their own licenses and notices; see
+Sources/TwigaSwitcherLexicon/Resources/Licenses/README.md in the source
+tree and TwigaSwitcher_TwigaSwitcherLexicon.bundle/Contents/Resources/Licenses
+in the application bundle.

@@ -1,0 +1,36 @@
+Twiga Switcher — установка / Installation
+
+Русский
+1. Перетащите Twiga Switcher.app в папку Applications (Программы).
+2. Извлеките образ диска и запустите приложение из «Программ».
+3. Если macOS блокирует запуск, после первой попытки откройте
+   «Системные настройки → Конфиденциальность и безопасность» и нажмите
+   кнопку «Всё равно открыть» (Open Anyway), затем подтвердите запуск.
+   Приложение использует ad-hoc подпись и не нотариализовано Apple.
+4. В меню Twiga Switcher откройте «Настроить доступы…» или
+   «Настройки… → Доступы». Запросите «Универсальный доступ»
+   (Accessibility) и «Мониторинг ввода» (Input Monitoring), откройте
+   соответствующие настройки macOS и включите Twiga Switcher.
+   В macOS 27 Accessibility называется «Управление устройством и доступ
+   к данным»; это раздел внутри «Конфиденциальность и безопасность».
+5. Вернитесь в приложение и нажмите «Проверить снова».
+   Если macOS требует перезапуск, завершите и снова откройте приложение.
+
+Кнопка «Открыть настройки macOS» в приложении ведёт в нужный раздел.
+После обновления приложения может потребоваться выдать доступы заново.
+
+English
+1. Drag Twiga Switcher.app onto Applications.
+2. Eject the disk image and launch the app from Applications.
+3. If macOS blocks the first launch, open System Settings → Privacy &
+   Security after attempting to launch it. Click Open Anyway and confirm.
+   This app is ad-hoc signed and has not been notarized by Apple.
+4. Open Set Up Permissions… from the app menu, or Settings… → Permissions.
+   Request Accessibility and Input Monitoring, open the corresponding
+   macOS settings, and enable Twiga Switcher. In macOS 27, Accessibility
+   is named Device Control and Data Access under Privacy & Security.
+5. Return to the app and click Check Again. Quit and reopen the app if
+   macOS requests a restart.
+
+Use the app's Open System Settings button to find the correct pane.
+You may need to grant access again after updating the app.

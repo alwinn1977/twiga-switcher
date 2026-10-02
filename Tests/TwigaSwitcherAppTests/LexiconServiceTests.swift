@@ -23,7 +23,7 @@ final class LexiconServiceTests: XCTestCase {
 
         try service.start()
 
-        let snapshot = try XCTUnwrap(service.currentSnapshot)
+        let snapshot = service.catalog.snapshot()
         XCTAssertEqual(snapshot.lookup("hello", language: .english).score, 5_000)
         XCTAssertEqual(snapshot.lookup("привет", language: .russian).score, 5_100)
         XCTAssertNil(service.fatalDiagnostic)
@@ -36,7 +36,6 @@ final class LexiconServiceTests: XCTestCase {
         )
 
         XCTAssertThrowsError(try service.start())
-        XCTAssertNil(service.currentSnapshot)
         XCTAssertNotNil(service.fatalDiagnostic)
         XCTAssertNil(service.catalog.lookup("hello", language: .english).score)
     }
@@ -60,8 +59,8 @@ final class LexiconServiceTests: XCTestCase {
         let service = LexiconService(baseLoader: { base }, packsRootURL: packsRoot)
         try service.start()
 
-        XCTAssertEqual(service.currentSnapshot?.lookup("hello", language: .english).score, 5_000)
-        XCTAssertNil(service.currentSnapshot?.lookup("kubernetes", language: .english).score)
+        XCTAssertEqual(service.catalog.lookup("hello", language: .english).score, 5_000)
+        XCTAssertNil(service.catalog.lookup("kubernetes", language: .english).score)
         XCTAssertFalse(try DictionaryPackStore(rootURL: packsRoot).isEnabled(installed.identifier))
         XCTAssertTrue(service.diagnostics.contains { $0.packIdentifier == installed.identifier })
     }
@@ -85,6 +84,66 @@ final class LexiconServiceTests: XCTestCase {
         settings.isEnabled = false
         try service.start()
         XCTAssertEqual(service.catalog.lookup("kubernetes", language: .english), .missing)
+    }
+
+    func testOlderReloadCannotRestoreDictionaryDisabledByNewerReload() async throws {
+        let suite = "LexiconReloadTests-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let settings = ComputerTermsSettings(defaults: defaults)
+        let base = try makeBaseLexicons()
+        let entered = expectation(description: "Older reload has read the enabled setting")
+        let release = DispatchSemaphore(value: 0)
+        let service = LexiconService(
+            baseLoader: { base },
+            packsRootURL: temporaryRoot.appendingPathComponent("packs"),
+            computerTermsLoader: {
+                entered.fulfill()
+                _ = release.wait(timeout: .now() + 10)
+                return base.english
+            },
+            computerTermsSettings: settings
+        )
+        let olderReload = Task { await service.reloadPacks() }
+        defer { release.signal() }
+        await fulfillment(of: [entered], timeout: 5)
+
+        settings.isEnabled = false
+        await service.reloadPacks()
+        XCTAssertFalse(service.catalog.lookup("hello", language: .english).isSubjectTerm)
+        release.signal()
+        await olderReload.value
+
+        XCTAssertFalse(service.catalog.lookup("hello", language: .english).isSubjectTerm)
+        XCTAssertFalse(settings.isEnabled)
+    }
+
+    func testFailureOfOlderReloadCannotClearNewerWorkingCatalog() async throws {
+        let base = try makeBaseLexicons()
+        let entered = expectation(description: "Older base load is blocked")
+        let release = DispatchSemaphore(value: 0)
+        let firstLoad = FirstLoadFlag()
+        let service = LexiconService(
+            baseLoader: {
+                if firstLoad.take() {
+                    entered.fulfill()
+                    _ = release.wait(timeout: .now() + 10)
+                    throw FixtureError.unavailable
+                }
+                return base
+            },
+            packsRootURL: temporaryRoot.appendingPathComponent("packs")
+        )
+        let olderReload = Task { await service.reloadPacks() }
+        defer { release.signal() }
+        await fulfillment(of: [entered], timeout: 5)
+        await service.reloadPacks()
+        release.signal()
+        await olderReload.value
+
+        XCTAssertEqual(service.catalog.lookup("hello", language: .english).score, 5_000)
+        XCTAssertNil(service.fatalDiagnostic)
+        XCTAssertTrue(service.diagnostics.isEmpty)
     }
 
     private func makeBaseLexicons() throws -> BundledBaseLexicons {
@@ -133,4 +192,16 @@ final class LexiconServiceTests: XCTestCase {
 
 private enum FixtureError: Error {
     case unavailable
+}
+
+private final class FirstLoadFlag: @unchecked Sendable {
+    private let lock = NSLock()
+    private var isFirst = true
+
+    func take() -> Bool {
+        lock.withLock {
+            defer { isFirst = false }
+            return isFirst
+        }
+    }
 }

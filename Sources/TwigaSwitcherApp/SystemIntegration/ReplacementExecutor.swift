@@ -7,15 +7,6 @@ public enum ReplacementExecutionResult: Equatable, Sendable {
     case partialFailure
 }
 
-public enum ReplacementEventDisposition: Equatable, Sendable {
-    case passOriginal
-    case suppressOriginal
-
-    public static func resolve(_ result: ReplacementExecutionResult) -> Self {
-        result == .failedBeforeMutation ? .passOriginal : .suppressOriginal
-    }
-}
-
 public final class ReplacementExecutor {
     private let eventPoster: EventPosting
     private let inputSources: InputSourceManaging

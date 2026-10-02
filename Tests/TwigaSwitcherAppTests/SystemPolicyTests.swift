@@ -3,6 +3,86 @@ import TwigaSwitcherCore
 @testable import TwigaSwitcherApp
 
 final class SystemPolicyTests: XCTestCase {
+    func testUncheckedApplicationModePersistsAndDoesNotRequireFieldMetadata() throws {
+        let unchecked = try XCTUnwrap(ApplicationCorrectionMode(rawValue: "unchecked"))
+        let suite = "UncheckedApplicationRules-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let store = ApplicationRulesStore(defaults: defaults)
+        store.setMode(unchecked, for: "com.apple.iWork.Pages")
+        let restored = ApplicationRulesStore(defaults: defaults)
+        XCTAssertEqual(restored.mode(for: "com.apple.iWork.Pages"), unchecked)
+        XCTAssertEqual(restored.mode(for: "com.apple.TextEdit"), .standard)
+        let policy = FocusSafetyPolicy(overrides: restored.overrides)
+        XCTAssertTrue(policy.isSafe(.init(
+            bundleID: "com.apple.iWork.Pages", role: nil, subrole: nil, valueIsSettable: false,
+            subroleLookupSucceeded: false, settableLookupSucceeded: false
+        )))
+        XCTAssertFalse(policy.isSafe(.init(
+            bundleID: "com.apple.Terminal", role: nil, subrole: nil, valueIsSettable: false
+        )))
+        XCTAssertFalse(policy.isSafe(.init(
+            bundleID: nil, role: nil, subrole: nil, valueIsSettable: false
+        )))
+    }
+
+    func testAppleOfficeApplicationsUseCompatibilityWithSecureFieldProtection() throws {
+        let suite = "AppleApplicationRules-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let store = ApplicationRulesStore(defaults: defaults)
+        let policy = FocusSafetyPolicy(overrides: store.overrides)
+        for id in ["com.apple.iWork.Pages", "com.apple.iWork.Numbers", "com.apple.iWork.Keynote"] {
+            let rule = try XCTUnwrap(store.rules.first { $0.bundleID == id })
+            XCTAssertEqual(rule.mode, .compatibility)
+            XCTAssertTrue(rule.isBuiltIn)
+            XCTAssertTrue(policy.allowsApplicationLevelFallback(bundleID: id))
+            XCTAssertTrue(policy.isSafe(.init(bundleID: id, role: "AXGroup", subrole: nil, valueIsSettable: true)))
+            XCTAssertFalse(policy.usesApplicationFocus(bundleID: id))
+            XCTAssertFalse(policy.isSafe(.init(bundleID: id, role: "AXTextField", subrole: "AXSecureTextField", valueIsSettable: true)))
+            XCTAssertFalse(policy.isSafe(.init(bundleID: id, role: "AXTextArea", subrole: nil, valueIsSettable: false)))
+        }
+        for id in ["com.apple.TextEdit", "com.apple.Notes", "com.apple.mail"] {
+            XCTAssertEqual(store.mode(for: id), .standard)
+        }
+    }
+
+    func testITermAndVNCApplicationsHaveNoDefaultRule() throws {
+        let suite = "RemovedApplicationRules-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let store = ApplicationRulesStore(defaults: defaults)
+        for id in ["com.googlecode.iterm2", "com.realvnc.vncviewer", "com.apple.ScreenSharing"] {
+            XCTAssertFalse(store.rules.contains { $0.bundleID == id })
+            XCTAssertEqual(store.mode(for: id), .standard)
+        }
+    }
+
+    func testRemovedDefaultApplicationKeepsExplicitModeVisibleAndRemovable() throws {
+        let suite = "SavedApplicationRules-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set(["com.googlecode.iterm2": "disabled"], forKey: "applicationCorrectionModes")
+        let store = ApplicationRulesStore(defaults: defaults)
+        let rule = try XCTUnwrap(store.rules.first { $0.bundleID == "com.googlecode.iterm2" })
+        XCTAssertEqual(rule.mode, .disabled)
+        XCTAssertFalse(rule.isBuiltIn)
+        store.removeApplication(bundleID: rule.bundleID)
+        XCTAssertEqual(store.mode(for: rule.bundleID), .standard)
+        XCTAssertFalse(store.rules.contains { $0.bundleID == rule.bundleID })
+    }
+
+    func testInstalledSafariUsesCompatibilityModeButNeverPermitsSecureFields() {
+        let policy = FocusSafetyPolicy()
+        XCTAssertTrue(policy.allowsApplicationLevelFallback(bundleID: "com.apple.Safari"))
+        XCTAssertTrue(policy.isSafe(.init(
+            bundleID: "com.apple.Safari", role: "AXGroup", subrole: nil, valueIsSettable: true
+        )))
+        XCTAssertFalse(policy.isSafe(.init(
+            bundleID: "com.apple.Safari", role: "AXTextField", subrole: "AXSecureTextField", valueIsSettable: true
+        )))
+    }
+
     func testApplicationModesOverrideBuiltInRulesButNeverPermitSecureFields() {
         let policy = FocusSafetyPolicy(overrides: [
             "com.apple.Terminal": .standard,
@@ -64,13 +144,13 @@ final class SystemPolicyTests: XCTestCase {
             valueIsSettable: true
         )))
         XCTAssertFalse(policy.isSafe(.init(
-            bundleID: "com.apple.Safari",
+            bundleID: "com.example.Editor",
             role: "AXGroup",
             subrole: nil,
             valueIsSettable: true
         )))
         XCTAssertTrue(policy.allowsApplicationLevelFallback(bundleID: "com.openai.codex"))
-        XCTAssertFalse(policy.allowsApplicationLevelFallback(bundleID: "com.apple.Safari"))
+        XCTAssertFalse(policy.allowsApplicationLevelFallback(bundleID: "com.example.Editor"))
         XCTAssertFalse(policy.allowsApplicationLevelFallback(bundleID: nil))
     }
 

@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import TwigaSwitcherCore
 
@@ -28,6 +29,9 @@ public final class UserRuleStore: @unchecked Sendable, UserCorrectionRuleLooking
     private let lock = NSLock()
     private var current: UserRuleSnapshot
     private var sessionRules = UserRuleSnapshot(rules: [])
+    private let ruleChanges = PassthroughSubject<Void, Never>()
+
+    var changes: AnyPublisher<Void, Never> { ruleChanges.eraseToAnyPublisher() }
 
     public init(
         fileURL: URL,
@@ -121,6 +125,8 @@ public final class UserRuleStore: @unchecked Sendable, UserCorrectionRuleLooking
                 $0.id != removingSessionRuleID
             })
         }
+        // Subscribers may read the snapshot; notify only after persistence and unlocking.
+        ruleChanges.send()
     }
 
     private func persist(_ snapshot: UserRuleSnapshot) throws {

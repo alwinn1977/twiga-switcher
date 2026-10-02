@@ -169,8 +169,7 @@ public struct PhraseBuffer: Sendable {
             let suffix = String(text[start...])
             return BufferedCandidate(
                 text: suffix,
-                physicalKeyCount: suffix.count,
-                tokenCount: suffix.split(separator: " ").count
+                physicalKeyCount: suffix.count
             )
         }
     }

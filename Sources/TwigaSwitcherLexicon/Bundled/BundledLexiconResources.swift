@@ -19,25 +19,11 @@ public struct BundledComputerTermsLexicons: Sendable, FrequencyLexicon {
     public let english: MappedLexicon
     public let russian: MappedLexicon
 
-    public var maximumPhraseWords: Int {
-        max(english.maximumPhraseWords, russian.maximumPhraseWords)
-    }
-
     public func lookup(_ text: String, language: Language) -> LexiconMatch {
         switch language {
         case .english: english.lookup(text, language: language)
         case .russian: russian.lookup(text, language: language)
         }
-    }
-}
-
-public struct BundledLexiconNotices: Equatable, Sendable {
-    public let wordfreq: String
-    public let dataLicense: String
-
-    public init(wordfreq: String, dataLicense: String) {
-        self.wordfreq = wordfreq
-        self.dataLicense = dataLicense
     }
 }
 
@@ -54,10 +40,6 @@ public enum BundledLexiconResources {
 
     public static func loadBase() throws -> BundledBaseLexicons {
         try loadBase(bundle: .module)
-    }
-
-    public static func loadNotices() throws -> BundledLexiconNotices {
-        try loadNotices(bundle: .module)
     }
 
     public static func loadComputerTerms() throws -> BundledComputerTermsLexicons {
@@ -156,22 +138,6 @@ public enum BundledLexiconResources {
         )
     }
 
-    static func loadNotices(bundle: Bundle) throws -> BundledLexiconNotices {
-        let wordfreq = try readTextResource(
-            "wordfreq-NOTICE",
-            extension: "md",
-            subdirectory: "Licenses",
-            bundle: bundle
-        )
-        let dataLicense = try readTextResource(
-            "CC-BY-SA-4.0",
-            extension: "txt",
-            subdirectory: "Licenses",
-            bundle: bundle
-        )
-        return BundledLexiconNotices(wordfreq: wordfreq, dataLicense: dataLicense)
-    }
-
     private static func loadIndex(
         languageCode: String,
         language: Language,
@@ -201,27 +167,6 @@ public enum BundledLexiconResources {
             throw BundledLexiconResourceError.metadataMismatch(metadata.file)
         }
         return lexicon
-    }
-
-    private static func readTextResource(
-        _ name: String,
-        extension fileExtension: String,
-        subdirectory: String,
-        bundle: Bundle
-    ) throws -> String {
-        let file = "\(name).\(fileExtension)"
-        guard let url = bundle.url(
-            forResource: name,
-            withExtension: fileExtension,
-            subdirectory: subdirectory
-        ) else {
-            throw BundledLexiconResourceError.missingResource(file)
-        }
-        do {
-            return try String(contentsOf: url, encoding: .utf8)
-        } catch {
-            throw BundledLexiconResourceError.unreadableResource(file)
-        }
     }
 
     private static func sha256(of url: URL) throws -> String {

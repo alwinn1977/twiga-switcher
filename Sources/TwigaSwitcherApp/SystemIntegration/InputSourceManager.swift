@@ -12,30 +12,30 @@ public struct InputSourceDescriptor: Equatable, Sendable {
 }
 
 public enum InputSourceResolver {
-    private static let englishIDs = ["US", "ABC", "USExtended", "USInternational-PC",
-        "British", "British-PC", "Canadian", "Irish"]
-    private static let russianIDs = ["Russian", "RussianWin"]
-
-    public static func language(of source: InputSourceDescriptor) -> KeyboardLayout? {
-        if russianIDs.contains(where: { source.id == "com.apple.keylayout." + $0 }) { return .russian }
-        if englishIDs.contains(where: { source.id == "com.apple.keylayout." + $0 }) { return .english }
+    public static func language(
+        of source: InputSourceDescriptor,
+        configuration: KeyboardLayoutsConfiguration = .bundled
+    ) -> KeyboardLayout? {
+        if configuration.russian.inputSourceIDs.contains(source.id) { return .russian }
+        if configuration.english.inputSourceIDs.contains(source.id) { return .english }
         // Subsequent languages describe script coverage, not the layout's language.
         let primary = source.languages.first?.lowercased().split(whereSeparator: { $0 == "-" || $0 == "_" }).first
-        if primary == "ru" { return .russian }
-        if primary == "en" { return .english }
+        if primary == Substring(configuration.russian.primaryLanguage) { return .russian }
+        if primary == Substring(configuration.english.primaryLanguage) { return .english }
         return nil
     }
 
     public static func resolve(
         _ layout: KeyboardLayout,
         from sources: [InputSourceDescriptor],
-        preferredID: String? = nil
+        preferredID: String? = nil,
+        configuration: KeyboardLayoutsConfiguration = .bundled
     ) -> InputSourceDescriptor? {
-        let candidates = sources.filter { language(of: $0) == layout }
+        let candidates = sources.filter { language(of: $0, configuration: configuration) == layout }
         if let preferredID, let preferred = candidates.first(where: { $0.id == preferredID }) { return preferred }
-        let ids = layout == .english ? englishIDs : russianIDs
+        let ids = configuration.sources(for: layout).inputSourceIDs
         for id in ids {
-            if let source = candidates.first(where: { $0.id == "com.apple.keylayout." + id }) { return source }
+            if let source = candidates.first(where: { $0.id == id }) { return source }
         }
         return candidates.first
     }

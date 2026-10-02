@@ -14,9 +14,8 @@ private func twigaswitcherTapCallback(
 public protocol KeyboardMonitoring: AnyObject, Sendable {
     var isRunning: Bool { get }
     var startError: String? { get }
-    var onStopped: ((String) -> Void)? { get set }
     var onDiagnostic: ((String) -> Void)? { get set }
-    var onLatestDecision: ((CorrectionPair?) -> Void)? { get set }
+    var onRuleSuggestion: ((CorrectionPair) -> Void)? { get set }
     var onInputSourcesChanged: (() -> Void)? { get set }
     var missingLayouts: [KeyboardLayout] { get }
     func start() -> Bool
@@ -25,16 +24,6 @@ public protocol KeyboardMonitoring: AnyObject, Sendable {
     func setHotkeys(_ hotkeys: HotkeyConfiguration)
     func setSoundEnabled(_ enabled: Bool)
     func reloadDictionaries() async
-}
-
-public extension KeyboardMonitoring {
-    var startError: String? { nil }
-    var missingLayouts: [KeyboardLayout] { [] }
-    var onInputSourcesChanged: (() -> Void)? { get { nil } set {} }
-    func setRule(_ disposition: UserCorrectionDisposition, for pair: CorrectionPair) throws {}
-    func setHotkeys(_ hotkeys: HotkeyConfiguration) {}
-    func setSoundEnabled(_ enabled: Bool) {}
-    func reloadDictionaries() async {}
 }
 
 public final class KeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
@@ -58,9 +47,8 @@ public final class KeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
     private var activationObserver: NSObjectProtocol?
     public private(set) var isRunning = false
     public private(set) var startError: String?
-    public var onStopped: ((String) -> Void)?
     public var onDiagnostic: ((String) -> Void)?
-    public var onLatestDecision: ((CorrectionPair?) -> Void)?
+    public var onRuleSuggestion: ((CorrectionPair) -> Void)?
 
     public init(
         lexiconService: LexiconService = LexiconService(),
@@ -158,7 +146,6 @@ public final class KeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
         correctionCoordinator.invalidate()
         if let tables = inputSources.tables { processor.updateConverter(tables.converter) }
         else { processor.reset() }
-        onLatestDecision?(nil)
     }
 
     public func stop() {
@@ -174,7 +161,6 @@ public final class KeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
 
     public func resetBuffer() {
         processor.reset()
-        onLatestDecision?(nil)
     }
 
     public func setHotkeys(_ hotkeys: HotkeyConfiguration) {
@@ -210,8 +196,7 @@ public final class KeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
             return Unmanaged.passUnretained(event)
         }
         let keyCode = CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
-        if marker != EventPoster.syntheticMarker,
-           let action = hotkeys.action(keyCode: keyCode, flags: event.flags),
+        if let action = hotkeys.action(keyCode: keyCode, flags: event.flags),
            NSWorkspace.shared.frontmostApplication?.processIdentifier != getpid() {
             if event.getIntegerValueField(.keyboardEventAutorepeat) != 0 { return nil }
             return handleHotkey(action, event: event)
@@ -226,12 +211,7 @@ public final class KeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
         let input = normalizer.normalize(raw, tables: inputSources.tables, currentLayout: physicalLayout)
         let needsFocus = processor.needsFocusSnapshot(for: input)
         let focus = needsFocus ? focusProvider.snapshot() : nil
-        if input != .synthetic {
-            onLatestDecision?(nil)
-        }
-        if input != .synthetic {
-            correctionCoordinator.invalidate()
-        }
+        correctionCoordinator.invalidate()
         switch processor.handle(input, focus: focus) {
         case .passThrough:
             return Unmanaged.passUnretained(event)
@@ -283,7 +263,6 @@ public final class KeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
             switch result {
             case .completed:
                 processor.reset()
-                onLatestDecision?(nil)
                 if soundEnabled { sound.play() }
                 return nil
             case .failedBeforeMutation:
@@ -303,7 +282,7 @@ public final class KeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
             let result = executor.execute(plan)
             switch result {
             case .completed:
-                onLatestDecision?(pair)
+                if let pair { onRuleSuggestion?(pair) }
                 if soundEnabled { sound.play() }
                 if let pair {
                     correctionCoordinator.record(.init(

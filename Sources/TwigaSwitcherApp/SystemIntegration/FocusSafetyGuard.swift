@@ -72,6 +72,7 @@ public struct FocusSafetyPolicy: Sendable {
     }
 
     public func isSafe(_ descriptor: FocusDescriptor) -> Bool {
+        if usesApplicationFocus(bundleID: descriptor.bundleID) { return true }
         guard let bundleID = descriptor.bundleID,
               mode(for: bundleID) != .disabled,
               let role = descriptor.role,
@@ -92,6 +93,11 @@ public struct FocusSafetyPolicy: Sendable {
         guard let bundleID else { return false }
         return mode(for: bundleID) == .compatibility
     }
+
+    public func usesApplicationFocus(bundleID: String?) -> Bool {
+        guard let bundleID else { return false }
+        return mode(for: bundleID) == .unchecked
+    }
 }
 
 public protocol FocusSnapshotProviding {
@@ -111,10 +117,18 @@ public struct FocusSafetyGuard: FocusSnapshotProviding {
         guard let app = NSWorkspace.shared.frontmostApplication else { return nil }
 
         let processID = app.processIdentifier
+        let policy = FocusSafetyPolicy(overrides: ApplicationRulesStore(defaults: defaults).overrides)
+        // This explicit per-app mode must not query Accessibility at all.
+        // Input boundaries, mouse events and app activation still clear the buffer.
+        if policy.usesApplicationFocus(bundleID: app.bundleIdentifier) {
+            return FocusSnapshot(identity: FocusIdentity(
+                processID: processID,
+                elementHash: UInt(UInt32(bitPattern: processID))
+            ))
+        }
         let axApp = AXUIElementCreateApplication(processID)
         AXUIElementSetMessagingTimeout(axApp, messagingTimeout)
 
-        let policy = FocusSafetyPolicy(overrides: ApplicationRulesStore(defaults: defaults).overrides)
         var focusedValue: CFTypeRef?
         let focusedResult = AXUIElementCopyAttributeValue(
             axApp,

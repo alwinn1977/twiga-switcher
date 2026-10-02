@@ -36,7 +36,6 @@ final class LexiconCatalogTests: XCTestCase {
             subjectLexicons: []
         )
 
-        XCTAssertEqual(enabled.maximumPhraseWords, 2)
         XCTAssertEqual(enabled.lookup("node", language: .english).score, 3_000)
         XCTAssertTrue(enabled.lookup("node", language: .english).isSubjectTerm)
         XCTAssertTrue(enabled.lookup("machine", language: .english).isStrictPrefix)

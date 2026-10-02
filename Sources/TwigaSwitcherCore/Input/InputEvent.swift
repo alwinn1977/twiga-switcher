@@ -20,12 +20,10 @@ public struct CorrectionPair: Equatable, Sendable {
 public struct BufferedCandidate: Equatable, Sendable {
     public let text: String
     public let physicalKeyCount: Int
-    public let tokenCount: Int
 
-    public init(text: String, physicalKeyCount: Int, tokenCount: Int) {
+    public init(text: String, physicalKeyCount: Int) {
         self.text = text
         self.physicalKeyCount = physicalKeyCount
-        self.tokenCount = tokenCount
     }
 }
 

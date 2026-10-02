@@ -46,7 +46,7 @@ public final class LexiconService: @unchecked Sendable {
     private let computerTermsSettings: ComputerTermsSettings?
     private let packsRootURL: URL
     private let lock = NSLock()
-    private var publishedSnapshot: LexiconCatalogSnapshot?
+    private var loadGeneration: UInt64 = 0
     private var publishedDiagnostics: [LexiconServiceDiagnostic] = []
     private var publishedFatalDiagnostic: LexiconServiceDiagnostic?
 
@@ -72,10 +72,6 @@ public final class LexiconService: @unchecked Sendable {
         self.catalog = LexiconCatalog(initialSnapshot: .init(baseLexicons: [], subjectLexicons: []))
     }
 
-    public var currentSnapshot: LexiconCatalogSnapshot? {
-        lock.withLock { publishedSnapshot }
-    }
-
     public var diagnostics: [LexiconServiceDiagnostic] {
         lock.withLock { publishedDiagnostics }
     }
@@ -85,6 +81,17 @@ public final class LexiconService: @unchecked Sendable {
     }
 
     public func start() throws {
+        try load(generation: beginLoad())
+    }
+
+    private func beginLoad() -> UInt64 {
+        lock.withLock {
+            loadGeneration &+= 1
+            return loadGeneration
+        }
+    }
+
+    private func load(generation: UInt64) throws {
         let base: BundledBaseLexicons
         do {
             base = try baseLoader()
@@ -94,13 +101,7 @@ public final class LexiconService: @unchecked Sendable {
                 packIdentifier: nil,
                 isFatal: true
             )
-            let empty = LexiconCatalogSnapshot(baseLexicons: [], subjectLexicons: [])
-            catalog.replaceSnapshot(empty)
-            lock.withLock {
-                publishedSnapshot = nil
-                publishedDiagnostics = [diagnostic]
-                publishedFatalDiagnostic = diagnostic
-            }
+            publish(nil, diagnostics: [diagnostic], fatalDiagnostic: diagnostic, generation: generation)
             throw LexiconServiceError.baseLexiconsUnavailable
         }
 
@@ -113,13 +114,7 @@ public final class LexiconService: @unchecked Sendable {
                 packIdentifier: nil,
                 isFatal: true
             )
-            let empty = LexiconCatalogSnapshot(baseLexicons: [], subjectLexicons: [])
-            catalog.replaceSnapshot(empty)
-            lock.withLock {
-                publishedSnapshot = nil
-                publishedDiagnostics = [diagnostic]
-                publishedFatalDiagnostic = diagnostic
-            }
+            publish(nil, diagnostics: [diagnostic], fatalDiagnostic: diagnostic, generation: generation)
             throw LexiconServiceError.baseLexiconsUnavailable
         }
 
@@ -139,7 +134,7 @@ public final class LexiconService: @unchecked Sendable {
         let installedPacks = (try? store.installedPacks()) ?? []
         let installedIdentifiers = Set(installedPacks.map(\.identifier))
         for identifier in store.enabledIdentifiersSnapshot().subtracting(installedIdentifiers) {
-            try? store.setEnabled(false, identifier: identifier)
+            disablePack(identifier, in: store, generation: generation)
             nonfatalDiagnostics.append(.init(
                 message: "Disabled unreadable dictionary pack: \(identifier)",
                 packIdentifier: identifier,
@@ -151,7 +146,7 @@ public final class LexiconService: @unchecked Sendable {
                 let mapped = try open(pack)
                 subjectLexicons.append(contentsOf: mapped)
             } catch {
-                try? store.setEnabled(false, identifier: pack.identifier)
+                disablePack(pack.identifier, in: store, generation: generation)
                 nonfatalDiagnostics.append(.init(
                     message: "Disabled corrupt dictionary pack: \(pack.manifest.name)",
                     packIdentifier: pack.identifier,
@@ -164,17 +159,34 @@ public final class LexiconService: @unchecked Sendable {
             baseLexicons: [base.english, base.russian],
             subjectLexicons: subjectLexicons
         )
-        catalog.replaceSnapshot(snapshot)
+        publish(snapshot, diagnostics: nonfatalDiagnostics, fatalDiagnostic: nil, generation: generation)
+    }
+
+    private func publish(
+        _ snapshot: LexiconCatalogSnapshot?,
+        diagnostics: [LexiconServiceDiagnostic],
+        fatalDiagnostic: LexiconServiceDiagnostic?,
+        generation: UInt64
+    ) {
         lock.withLock {
-            publishedSnapshot = snapshot
-            publishedDiagnostics = nonfatalDiagnostics
-            publishedFatalDiagnostic = nil
+            guard generation == loadGeneration else { return }
+            catalog.replaceSnapshot(snapshot ?? .init(baseLexicons: [], subjectLexicons: []))
+            publishedDiagnostics = diagnostics
+            publishedFatalDiagnostic = fatalDiagnostic
+        }
+    }
+
+    private func disablePack(_ identifier: String, in store: DictionaryPackStore, generation: UInt64) {
+        lock.withLock {
+            guard generation == loadGeneration else { return }
+            try? store.setEnabled(false, identifier: identifier)
         }
     }
 
     public func reloadPacks() async {
+        let generation = beginLoad()
         _ = try? await Task.detached(priority: .utility) { [self] in
-            try start()
+            try load(generation: generation)
         }.value
     }
 

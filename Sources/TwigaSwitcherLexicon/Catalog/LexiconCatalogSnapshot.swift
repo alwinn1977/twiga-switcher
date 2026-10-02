@@ -4,7 +4,6 @@ import TwigaSwitcherCore
 public final class LexiconCatalogSnapshot: @unchecked Sendable, FrequencyLexicon {
     private let baseLexicons: [any FrequencyLexicon]
     private let subjectLexicons: [any FrequencyLexicon]
-    public let maximumPhraseWords: Int
 
     public init(
         baseLexicons: [any FrequencyLexicon],
@@ -12,9 +11,6 @@ public final class LexiconCatalogSnapshot: @unchecked Sendable, FrequencyLexicon
     ) {
         self.baseLexicons = baseLexicons
         self.subjectLexicons = subjectLexicons
-        self.maximumPhraseWords = (baseLexicons + subjectLexicons)
-            .map(\.maximumPhraseWords)
-            .max() ?? 1
     }
 
     public func lookup(_ text: String, language: Language) -> LexiconMatch {

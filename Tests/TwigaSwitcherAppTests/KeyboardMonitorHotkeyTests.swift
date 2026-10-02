@@ -31,12 +31,11 @@ final class KeyboardMonitorHotkeyTests: XCTestCase {
     func testRepeatedTapTimeoutsDoNotPermanentlyStopMonitoring() throws {
         let fixture = try makeFixture()
         defer { fixture.cleanup() }
-        var stopped = false
-        fixture.monitor.onStopped = { _ in stopped = true }
         let event = try XCTUnwrap(CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: true))
         _ = fixture.monitor.handle(type: .tapDisabledByTimeout, event: event)
         _ = fixture.monitor.handle(type: .tapDisabledByTimeout, event: event)
-        XCTAssertFalse(stopped)
+        for character in "ghbd" { send(String(character), to: fixture.monitor) }
+        XCTAssertEqual(fixture.poster.unicode, ["прив"])
     }
 
     func testFailedLiveInsertionCannotLeavePhantomWordForForceCorrection() throws {
@@ -65,19 +64,19 @@ final class KeyboardMonitorHotkeyTests: XCTestCase {
     func testForceShortcutCorrectsWordAndOnlyThenOffersManualRule() throws {
         let fixture = try makeFixture()
         defer { fixture.cleanup() }
-        var published: [CorrectionPair?] = []
-        fixture.monitor.onLatestDecision = { published.append($0) }
+        var published: [CorrectionPair] = []
+        fixture.monitor.onRuleSuggestion = { published.append($0) }
 
         for character in "qzq" { send(String(character), to: fixture.monitor) }
         send(" ", keyCode: 49, to: fixture.monitor)
-        XCTAssertFalse(published.contains { $0 != nil })
+        XCTAssertTrue(published.isEmpty)
 
         XCTAssertFalse(send("", keyCode: 37, flags: [.maskControl, .maskAlternate], to: fixture.monitor))
 
         XCTAssertEqual(fixture.poster.backspaces, [4])
         XCTAssertEqual(fixture.poster.unicode, ["йяй", " "])
         XCTAssertEqual(fixture.sources.selected, [.russian])
-        XCTAssertEqual(published.last!, .init(source: "qzq", candidate: "йяй"))
+        XCTAssertEqual(published.last, .init(source: "qzq", candidate: "йяй"))
         XCTAssertEqual(fixture.sound.count, 1)
 
         let mouseSource = CGEventSource(stateID: .hidSystemState)!
@@ -88,18 +87,18 @@ final class KeyboardMonitorHotkeyTests: XCTestCase {
             mouseButton: .left
         )!
         _ = fixture.monitor.handle(type: .leftMouseDown, event: mouse)
-        XCTAssertEqual(published.last!, .init(source: "qzq", candidate: "йяй"))
+        XCTAssertEqual(published.last, .init(source: "qzq", candidate: "йяй"))
     }
 
     func testDedicatedUndoSurvivesModifierPressAndLearnsNeverRule() throws {
         let fixture = try makeFixture()
         defer { fixture.cleanup() }
-        var published: [CorrectionPair?] = []
-        fixture.monitor.onLatestDecision = { published.append($0) }
+        var published: [CorrectionPair] = []
+        fixture.monitor.onRuleSuggestion = { published.append($0) }
 
         for character in "ghbd" { send(String(character), to: fixture.monitor) }
         XCTAssertEqual(fixture.poster.unicode, ["прив"])
-        XCTAssertFalse(published.contains { $0 != nil })
+        XCTAssertTrue(published.isEmpty)
 
         sendModifier([.maskControl], to: fixture.monitor)
         sendModifier([.maskControl, .maskAlternate], to: fixture.monitor)

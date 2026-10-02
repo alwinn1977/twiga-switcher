@@ -23,10 +23,13 @@ struct BundledLexiconResourceTests {
 
     @Test("ships attribution and the complete data license")
     func includesLicenseNotices() throws {
-        let notices = try BundledLexiconResources.loadNotices()
+        let noticeURL = try #require(Bundle.module.url(forResource: "wordfreq-NOTICE", withExtension: "md", subdirectory: "Licenses"))
+        let licenseURL = try #require(Bundle.module.url(forResource: "CC-BY-SA-4.0", withExtension: "txt", subdirectory: "Licenses"))
+        let notice = try String(contentsOf: noticeURL, encoding: .utf8)
+        let license = try String(contentsOf: licenseURL, encoding: .utf8)
 
-        #expect(notices.wordfreq.contains("wordfreq"))
-        #expect(notices.wordfreq.contains("Creative Commons Attribution-ShareAlike 4.0"))
-        #expect(notices.dataLicense.contains("Creative Commons Attribution-ShareAlike 4.0"))
+        #expect(notice.contains("wordfreq"))
+        #expect(notice.contains("Creative Commons Attribution-ShareAlike 4.0"))
+        #expect(license.contains("Creative Commons Attribution-ShareAlike 4.0"))
     }
 }

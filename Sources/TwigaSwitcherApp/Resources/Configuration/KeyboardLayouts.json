@@ -1,0 +1,22 @@
+{
+  "english": {
+    "inputSourceIDs": [
+      "com.apple.keylayout.US",
+      "com.apple.keylayout.ABC",
+      "com.apple.keylayout.USExtended",
+      "com.apple.keylayout.USInternational-PC",
+      "com.apple.keylayout.British",
+      "com.apple.keylayout.British-PC",
+      "com.apple.keylayout.Canadian",
+      "com.apple.keylayout.Irish"
+    ],
+    "primaryLanguage": "en"
+  },
+  "russian": {
+    "inputSourceIDs": [
+      "com.apple.keylayout.Russian",
+      "com.apple.keylayout.RussianWin"
+    ],
+    "primaryLanguage": "ru"
+  }
+}

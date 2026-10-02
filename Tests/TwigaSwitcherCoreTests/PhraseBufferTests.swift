@@ -14,7 +14,6 @@ final class PhraseBufferTests: XCTestCase {
 
         XCTAssertEqual(candidates.first?.text, "ьфсршту дуфктштп")
         XCTAssertEqual(candidates.first?.physicalKeyCount, 16)
-        XCTAssertEqual(candidates.first?.tokenCount, 2)
         XCTAssertEqual(candidates.last?.text, "дуфктштп")
     }
 
@@ -88,11 +87,11 @@ final class PhraseBufferTests: XCTestCase {
         XCTAssertTrue(scalars.handle(.boundary(" ")).candidates.isEmpty)
 
         var tokens = PhraseBuffer(maxTokens: 8, maxScalars: 128)
-        for index in 0..<8 {
+        for expected in ["a", "a a", "a a a", "a a a a", "a a a a a", "a a a a a a", "a a a a a a a", "a a a a a a a a"] {
             feed("a", to: &tokens)
             let result = tokens.handle(.boundary(" "))
             tokens.resolve(result, disposition: .deferForPhrase(try XCTUnwrap(result.candidates.first)))
-            XCTAssertEqual(index + 1, result.candidates.first?.tokenCount)
+            XCTAssertEqual(result.candidates.first?.text, expected)
         }
         feed("a", to: &tokens)
         XCTAssertTrue(tokens.handle(.boundary(" ")).candidates.isEmpty)

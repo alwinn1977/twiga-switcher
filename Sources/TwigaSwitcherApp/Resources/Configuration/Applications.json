@@ -1,0 +1,18 @@
+{
+  "applications": [
+    { "bundleID": "com.apple.Terminal", "name": "Terminal", "mode": "disabled" },
+    { "bundleID": "com.microsoft.rdc.macos", "name": "Microsoft Remote Desktop", "mode": "disabled" },
+    { "bundleID": "com.apple.iWork.Pages", "name": "Pages", "mode": "compatibility" },
+    { "bundleID": "com.apple.iWork.Numbers", "name": "Numbers", "mode": "compatibility" },
+    { "bundleID": "com.apple.iWork.Keynote", "name": "Keynote", "mode": "compatibility" },
+    { "bundleID": "com.apple.TextEdit", "name": "TextEdit", "mode": "standard" },
+    { "bundleID": "com.apple.Notes", "name": "Notes", "mode": "standard" },
+    { "bundleID": "com.apple.mail", "name": "Mail", "mode": "standard" },
+    { "bundleID": "com.openai.codex", "name": "Codex", "mode": "compatibility" },
+    { "bundleID": "us.zoom.xos", "name": "Zoom Workplace", "mode": "compatibility" }
+  ],
+  "browserDiscovery": {
+    "urlSchemes": ["http", "https"],
+    "mode": "compatibility"
+  }
+}

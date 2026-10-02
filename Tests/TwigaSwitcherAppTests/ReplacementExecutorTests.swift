@@ -59,7 +59,6 @@ final class ReplacementExecutorTests: XCTestCase {
 
         XCTAssertEqual(executor.execute(.init(deleteKeyCount: 6, replacement: "привет", delimiter: " ", targetLayout: .russian)), .failedBeforeMutation)
         XCTAssertEqual(events.actions, [])
-        XCTAssertEqual(ReplacementEventDisposition.resolve(.failedBeforeMutation), .passOriginal)
     }
 
     func testFailureAfterMutationSuppressesOriginalAndNeverRetries() {
@@ -69,8 +68,6 @@ final class ReplacementExecutorTests: XCTestCase {
 
         XCTAssertEqual(executor.execute(.init(deleteKeyCount: 6, replacement: "привет", delimiter: " ", targetLayout: .russian)), .partialFailure)
         XCTAssertEqual(events.actions, [.backspace(count: 6), .unicode("привет")])
-        XCTAssertEqual(ReplacementEventDisposition.resolve(.partialFailure), .suppressOriginal)
-        XCTAssertEqual(ReplacementEventDisposition.resolve(.textReplacedLayoutUnavailable), .suppressOriginal)
     }
 
     func testReverseUsesTheSameSinglePassSafetyContract() {

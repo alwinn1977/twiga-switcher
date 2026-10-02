@@ -12,7 +12,6 @@ final class ComputerTermsResourceTests: XCTestCase {
         for term in ["машинное обучение", "база данных"] {
             XCTAssertTrue(pack.lookup(term, language: .russian).isSubjectTerm, term)
         }
-        XCTAssertGreaterThanOrEqual(pack.maximumPhraseWords, 2)
     }
 
     func testBundledFrequencyDecisionCorrectsComputerFromPhysicalKeys() throws {

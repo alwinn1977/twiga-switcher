@@ -27,6 +27,12 @@ struct TwigaSwitcherMain: App {
             ShortcutSettingsView(controller: controller)
                 .environment(\.locale, controller.displayLanguage.locale)
         }
+        Window(InterfaceText.about.localized(controller.displayLanguage), id: "about") {
+            AboutView(controller: controller)
+                .environment(\.locale, controller.displayLanguage.locale)
+        }
+        .windowResizability(.contentSize)
+        .defaultPosition(.center)
     }
 }
 
@@ -52,6 +58,7 @@ private struct TwigaSwitcherMenu: View {
         Button(InterfaceText.rulesMenu.localized(language)) { showWindow(id: "rules") }
         Button(InterfaceText.settingsMenu.localized(language)) { showWindow(id: "settings") }
         Divider()
+        Button(InterfaceText.about.localized(language)) { showWindow(id: "about") }
         Button(InterfaceText.quit.localized(language)) { NSApplication.shared.terminate(nil) }
     }
 
@@ -65,6 +72,7 @@ private struct TwigaSwitcherMenu: View {
                 $0.identifier?.rawValue == id
             }) else { return }
             if window.isMiniaturized { window.deminiaturize(nil) }
+            if id == "about" { window.center() }
             NSApplication.shared.activate()
             window.makeKeyAndOrderFront(nil)
         }

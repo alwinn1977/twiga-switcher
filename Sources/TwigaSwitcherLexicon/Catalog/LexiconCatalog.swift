@@ -9,10 +9,6 @@ public final class LexiconCatalog: @unchecked Sendable, FrequencyLexicon {
         self.currentSnapshot = initialSnapshot
     }
 
-    public var maximumPhraseWords: Int {
-        snapshot().maximumPhraseWords
-    }
-
     public func snapshot() -> LexiconCatalogSnapshot {
         lock.withLock { currentSnapshot }
     }

@@ -40,6 +40,19 @@ final class UserRuleStoreTests: XCTestCase {
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: root.path).count, 1)
     }
 
+    func testDuplicatePersistedRulesAreNormalizedAndNeverWinsConflicts() throws {
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        try Data(#"{"schemaVersion":1,"rules":[{"source":"ghbdtn","candidate":"привет","disposition":"always"},{"source":"ghbdtn","candidate":"привет","disposition":"never"},{"source":" GHBDTN ","candidate":"ПРИВЕТ","disposition":"always"},{"source":"руддщ","candidate":"hello","disposition":"always"}]}"#.utf8).write(to: file)
+
+        let store = try UserRuleStore(fileURL: file)
+
+        XCTAssertEqual(store.loadSnapshot().rules.count, 2)
+        XCTAssertEqual(store.disposition(source: "ghbdtn", candidate: "привет"), .never)
+        XCTAssertEqual(store.disposition(source: "руддщ", candidate: "hello"), .always)
+        try store.set(disposition: .always, source: "руддщ", candidate: "hello")
+        XCTAssertEqual(try UserRuleStore(fileURL: file).loadSnapshot().rules.count, 2)
+    }
+
     func testFailedAtomicWriteKeepsOldDiskAndMemorySnapshot() throws {
         let initial = try UserRuleStore(fileURL: file)
         try initial.set(disposition: .always, source: "one", candidate: "дту")

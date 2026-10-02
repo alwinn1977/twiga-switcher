@@ -5,11 +5,11 @@ import Foundation
 public final class RulesManagerModel: ObservableObject {
     @Published public private(set) var rules: [UserRule] = []
     @Published private(set) var status: InterfaceStatus?
-    public var statusMessage: String? { status?.localized(.english) }
     public func statusMessage(in language: DisplayLanguage) -> String? { status?.localized(language) }
 
     private let store: UserRuleStore
     private let confirmDeleteAll: @MainActor () -> Bool
+    private var changesSubscription: AnyCancellable?
 
     public init(
         store: UserRuleStore = .sharedDefault,
@@ -17,6 +17,11 @@ public final class RulesManagerModel: ObservableObject {
     ) {
         self.store = store
         self.confirmDeleteAll = confirmDeleteAll
+        changesSubscription = store.changes
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in
+                MainActor.assumeIsolated { self?.refresh() }
+            }
         refresh()
     }
 

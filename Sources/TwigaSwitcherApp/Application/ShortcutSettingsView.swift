@@ -103,9 +103,10 @@ struct ShortcutSettingsView: View {
                             Text(InterfaceText.standardMode.localized(language)).tag(ApplicationCorrectionMode.standard)
                             Text(InterfaceText.disabledMode.localized(language)).tag(ApplicationCorrectionMode.disabled)
                             Text(InterfaceText.compatibilityMode.localized(language)).tag(ApplicationCorrectionMode.compatibility)
+                            Text(InterfaceText.uncheckedMode.localized(language)).tag(ApplicationCorrectionMode.unchecked)
                         }
                         .labelsHidden()
-                        .frame(width: 160)
+                        .frame(width: 190)
                         if !rule.isBuiltIn {
                             Button {
                                 controller.removeApplication(bundleID: rule.bundleID)
@@ -117,6 +118,9 @@ struct ShortcutSettingsView: View {
                     }
                 }
                 Text(InterfaceText.compatibilityWarning.localized(language))
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                Text(InterfaceText.uncheckedWarning.localized(language))
                     .font(.caption)
                     .foregroundStyle(.orange)
                 Button(InterfaceText.addApplication.localized(language)) { addApplication() }

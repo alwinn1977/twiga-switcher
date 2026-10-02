@@ -4,11 +4,6 @@ public enum CorrectionDecision: Equatable, Sendable {
     case correct(text: String, targetLayout: KeyboardLayout)
 }
 
-struct CorrectionEvaluation: Sendable {
-    let decision: CorrectionDecision
-    let offersManualCorrection: Bool
-}
-
 public struct LanguageDetector<Lexicon: FrequencyLexicon, Rules: UserCorrectionRuleLookingUp>: Sendable {
     private static var minimumTargetScore: Int { 2_500 }
     private static var ambiguityMargin: Int { 1_000 }
@@ -20,10 +15,6 @@ public struct LanguageDetector<Lexicon: FrequencyLexicon, Rules: UserCorrectionR
     public init(lexicon: Lexicon, rules: Rules) {
         self.lexicon = lexicon
         self.rules = rules
-    }
-
-    public func decision(original: String, conversion: LayoutConversion) -> CorrectionDecision {
-        evaluate(original: original, conversion: conversion).decision
     }
 
     func shouldCorrectWhileTyping(original: String, conversion: LayoutConversion) -> Bool {
@@ -57,7 +48,7 @@ public struct LanguageDetector<Lexicon: FrequencyLexicon, Rules: UserCorrectionR
         ) == .always
     }
 
-    func evaluate(original: String, conversion: LayoutConversion) -> CorrectionEvaluation {
+    public func decision(original: String, conversion: LayoutConversion) -> CorrectionDecision {
         let isLowercaseSingleLetter = original.count == 1 && original.first?.isLowercase == true
             && conversion.text.count == 1 && conversion.text.first?.isLetter == true
         let source = TermNormalizer.normalize(original)
@@ -67,12 +58,9 @@ public struct LanguageDetector<Lexicon: FrequencyLexicon, Rules: UserCorrectionR
 
         switch rules.disposition(source: source, candidate: candidate) {
         case .never:
-            return .init(decision: .unchanged, offersManualCorrection: true)
+            return .unchanged
         case .always:
-            return .init(
-                decision: .correct(text: conversion.text, targetLayout: conversion.targetLayout),
-                offersManualCorrection: true
-            )
+            return .correct(text: conversion.text, targetLayout: conversion.targetLayout)
         case nil:
             break
         }
@@ -84,32 +72,23 @@ public struct LanguageDetector<Lexicon: FrequencyLexicon, Rules: UserCorrectionR
         // Lowercase standalone letters use the usual frequency margin. Uppercase
         // initials still wait for context, and dotted abbreviations stay buffered.
         if !isLowercaseSingleLetter && (originalMatch.isStrictPrefix || candidateMatch.isStrictPrefix) {
-            return .init(
-                decision: .deferred,
-                offersManualCorrection: !(originalScore != nil && candidateScore == nil)
-            )
+            return .deferred
         }
 
         if originalScore == nil, candidateScore == nil,
            let decision = singleLetterPhraseDecision(original: original, conversion: conversion) {
-            return .init(decision: decision, offersManualCorrection: true)
+            return decision
         }
 
         guard let candidateScore,
               candidateScore >= Self.minimumTargetScore else {
-            return .init(
-                decision: .unchanged,
-                offersManualCorrection: originalScore == nil
-            )
+            return .unchanged
         }
         if let originalScore,
            candidateScore - originalScore < Self.ambiguityMargin {
-            return .init(decision: .unchanged, offersManualCorrection: true)
+            return .unchanged
         }
-        return .init(
-            decision: .correct(text: conversion.text, targetLayout: conversion.targetLayout),
-            offersManualCorrection: true
-        )
+        return .correct(text: conversion.text, targetLayout: conversion.targetLayout)
     }
 
     private func singleLetterPhraseDecision(original: String, conversion: LayoutConversion) -> CorrectionDecision? {
@@ -136,10 +115,10 @@ public struct LanguageDetector<Lexicon: FrequencyLexicon, Rules: UserCorrectionR
                targetScore - sourceScore < Self.ambiguityMargin { return nil }
         }
 
-        let following = evaluate(original: sourceWords.dropFirst(prefixCount).joined(separator: " "), conversion: .init(
+        let following = decision(original: sourceWords.dropFirst(prefixCount).joined(separator: " "), conversion: .init(
             text: targetWords.dropFirst(prefixCount).joined(separator: " "), targetLayout: conversion.targetLayout
         ))
-        switch following.decision {
+        switch following {
         case .correct:
             return .correct(text: conversion.text, targetLayout: conversion.targetLayout)
         case .deferred:

@@ -46,7 +46,6 @@ public final class DictionaryManagerModel: ObservableObject {
     @Published public private(set) var rows: [DictionaryManagerRow] = []
     @Published public private(set) var isWorking = false
     @Published private(set) var status: InterfaceStatus?
-    public var statusMessage: String? { status?.localized(.english) }
     public func statusMessage(in language: DisplayLanguage) -> String? { status?.localized(language) }
 
     private let store: DictionaryPackStore

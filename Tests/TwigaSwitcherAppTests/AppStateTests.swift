@@ -14,9 +14,9 @@ private final class StubPermissionManager: PermissionManaging {
 
 private final class StubKeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
     var isRunning = false
-    var onStopped: ((String) -> Void)?
+    var startError: String?
     var onDiagnostic: ((String) -> Void)?
-    var onLatestDecision: ((CorrectionPair?) -> Void)?
+    var onRuleSuggestion: ((CorrectionPair) -> Void)?
     var onInputSourcesChanged: (() -> Void)?
     var missingLayouts: [KeyboardLayout] = []
     private(set) var startCount = 0
@@ -42,6 +42,7 @@ private final class StubKeyboardMonitor: KeyboardMonitoring, @unchecked Sendable
 
     func setHotkeys(_ hotkeys: HotkeyConfiguration) { configuredHotkeys = hotkeys }
     func setSoundEnabled(_ enabled: Bool) { configuredSound = enabled }
+    func reloadDictionaries() async {}
 }
 
 @MainActor
@@ -168,13 +169,11 @@ final class AppStateTests: XCTestCase {
     }
 
     @MainActor
-    func testRuleSuggestionSurvivesMoreTypingAndSavesThePresentedPair() {
+    func testSavingSuggestionUsesThePresentedPair() {
         let monitor = StubKeyboardMonitor()
         let controller = AppController(permissions: StubPermissionManager(), monitor: monitor, initialEnabled: true)
         let pair = CorrectionPair(source: "qzq", candidate: "йяй")
-        monitor.onLatestDecision?(pair)
-        monitor.onLatestDecision?(nil)
-        XCTAssertNil(controller.latestDecisionPair)
+        monitor.onRuleSuggestion?(pair)
         XCTAssertEqual(controller.pendingRuleSuggestion, pair)
         controller.saveSuggestedRule(.always)
         XCTAssertEqual(monitor.savedRule?.1, pair)
@@ -186,10 +185,10 @@ final class AppStateTests: XCTestCase {
         let monitor = StubKeyboardMonitor()
         let controller = AppController(permissions: StubPermissionManager(), monitor: monitor, initialEnabled: true)
         let pair = CorrectionPair(source: "qzq", candidate: "йяй")
-        monitor.onLatestDecision?(pair)
+        monitor.onRuleSuggestion?(pair)
         controller.dismissRuleSuggestion()
         XCTAssertNil(monitor.savedRule)
-        monitor.onLatestDecision?(pair)
+        monitor.onRuleSuggestion?(pair)
         XCTAssertEqual(controller.pendingRuleSuggestion, pair)
     }
 
@@ -248,14 +247,14 @@ final class AppStateTests: XCTestCase {
 
 
     @MainActor
-    func testFatalMonitorStopIsLatchedUntilExplicitRestart() {
+    func testMonitorErrorIsLatchedUntilExplicitRestart() {
         let permissions = StubPermissionManager()
         let monitor = StubKeyboardMonitor()
         let controller = AppController(permissions: permissions, monitor: monitor, initialEnabled: true)
         XCTAssertEqual(monitor.startCount, 1)
 
         monitor.isRunning = false
-        monitor.onStopped?("Event monitor stopped")
+        monitor.onDiagnostic?("Event monitor stopped")
 
         XCTAssertEqual(monitor.startCount, 1)
         XCTAssertEqual(controller.state, .error("Event monitor stopped"))
@@ -274,20 +273,6 @@ final class AppStateTests: XCTestCase {
 
         XCTAssertEqual(monitor.startCount, 1)
         XCTAssertEqual(controller.state, .error("Russian input source is unavailable"))
-    }
-
-    @MainActor
-    func testLatestPairEnablesManualLearningAction() {
-        let monitor = StubKeyboardMonitor()
-        let controller = AppController(permissions: StubPermissionManager(), monitor: monitor, initialEnabled: true)
-        let pair = CorrectionPair(source: "ghbdtn", candidate: "привет")
-
-        monitor.onLatestDecision?(pair)
-        controller.setLatestRule(.never)
-
-        XCTAssertEqual(controller.latestDecisionPair, pair)
-        XCTAssertEqual(monitor.savedRule?.0, .never)
-        XCTAssertEqual(monitor.savedRule?.1, pair)
     }
 
     @MainActor

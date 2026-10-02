@@ -11,6 +11,8 @@ public final class MappedLexicon: @unchecked Sendable, FrequencyLexicon {
     private let recordTableOffset: Int
     private let stringTableOffset: Int
     private let stringTableLength: Int
+    private let scoreTree: [Int16]
+    private let scoreTreeLeafCount: Int
 
     public init(url: URL, expectedLanguage: Language) throws {
         let file = try MappedFile(url: url)
@@ -68,6 +70,9 @@ public final class MappedLexicon: @unchecked Sendable, FrequencyLexicon {
 
         var previousKey: Data?
         var computedMaximumWords = 0
+        var leafCount = 1
+        while leafCount < entryCount { leafCount *= 2 }
+        var scoreTree = [Int16](repeating: -1, count: leafCount * 2)
         for index in 0..<entryCount {
             let record = try Self.readRecord(
                 bytes,
@@ -89,11 +94,17 @@ public final class MappedLexicon: @unchecked Sendable, FrequencyLexicon {
                 }
             }
             previousKey = record.key
+            scoreTree[leafCount + index] = Int16(record.score)
             computedMaximumWords = max(computedMaximumWords, key.split(separator: " ").count)
         }
         guard computedMaximumWords == Int(maximumWords),
               computedMaximumWords <= LexiconIndexFormat.maximumPhraseWords else {
             throw LexiconIndexError.invalidFormat
+        }
+        if leafCount > 1 {
+            for index in stride(from: leafCount - 1, through: 1, by: -1) {
+                scoreTree[index] = max(scoreTree[index * 2], scoreTree[index * 2 + 1])
+            }
         }
 
         self.file = file
@@ -103,6 +114,8 @@ public final class MappedLexicon: @unchecked Sendable, FrequencyLexicon {
         self.recordTableOffset = recordsOffset
         self.stringTableOffset = stringsOffset
         self.stringTableLength = stringsLength
+        self.scoreTree = scoreTree
+        self.scoreTreeLeafCount = leafCount
     }
 
     public func lookup(_ text: String, language: Language) -> LexiconMatch {
@@ -138,10 +151,27 @@ public final class MappedLexicon: @unchecked Sendable, FrequencyLexicon {
         guard language == self.language else { return false }
         let query = Data(TermNormalizer.normalize(prefix).utf8)
         guard !query.isEmpty else { return false }
-        var index = lowerBound(for: query)
-        while index < entryCount, let record = try? record(at: index), record.key.starts(with: query) {
-            if record.score >= minimumScore { return true }
-            index += 1
+        let lower = lowerBound(for: query)
+        // No UTF-8 string contains FF, so this bounds every continuation of query.
+        var upperQuery = query
+        upperQuery.append(0xFF)
+        let upper = lowerBound(for: upperQuery)
+        guard lower < upper else { return false }
+
+        // Range maxima avoid a scan of arbitrarily many low-frequency completions.
+        var left = lower + scoreTreeLeafCount
+        var right = upper + scoreTreeLeafCount
+        while left < right {
+            if left % 2 == 1 {
+                if Int(scoreTree[left]) >= minimumScore { return true }
+                left += 1
+            }
+            if right % 2 == 1 {
+                right -= 1
+                if Int(scoreTree[right]) >= minimumScore { return true }
+            }
+            left /= 2
+            right /= 2
         }
         return false
     }

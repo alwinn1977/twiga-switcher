@@ -12,7 +12,6 @@ public final class AppController: ObservableObject {
     private let presentDialogs: Bool
     private var ruleDialog: NSPanel?
     private var layoutDialog: NSPanel?
-    @Published public private(set) var latestDecisionPair: CorrectionPair?
     @Published public private(set) var hotkeys: HotkeyConfiguration
     @Published public private(set) var soundEnabled: Bool
     @Published public private(set) var launchAtLoginStatus: SMAppService.Status = .notRegistered
@@ -56,20 +55,14 @@ public final class AppController: ObservableObject {
             ?? true
         monitor.setHotkeys(hotkeys)
         monitor.setSoundEnabled(soundEnabled)
-        monitor.onStopped = { [weak self] message in
-            MainActor.assumeIsolated {
-                self?.handleMonitorStopped(message)
-            }
-        }
         monitor.onDiagnostic = { [weak self] message in
             MainActor.assumeIsolated {
                 self?.handleMonitorDiagnostic(message)
             }
         }
-        monitor.onLatestDecision = { [weak self] pair in
+        monitor.onRuleSuggestion = { [weak self] pair in
             MainActor.assumeIsolated {
-                self?.latestDecisionPair = pair
-                if let pair { self?.offerRule(pair) }
+                self?.offerRule(pair)
             }
         }
         monitor.onInputSourcesChanged = { [weak self] in
@@ -185,15 +178,6 @@ public final class AppController: ObservableObject {
         refresh()
     }
 
-    public func setLatestRule(_ disposition: UserCorrectionDisposition) {
-        guard let pair = latestDecisionPair else { return }
-        do {
-            try monitor.setRule(disposition, for: pair)
-        } catch {
-            handleMonitorDiagnostic("Unable to save learned rule")
-        }
-    }
-
     @discardableResult
     public func setHotkey(_ hotkey: Hotkey, for action: HotkeyAction) -> Bool {
         guard hotkeyStore.set(hotkey, for: action) else {
@@ -242,16 +226,6 @@ public final class AppController: ObservableObject {
 
     public func reloadDictionaries() async {
         await monitor.reloadDictionaries()
-    }
-
-    private func handleMonitorStopped(_ message: String) {
-        lastError = message
-        state = .resolve(
-            enabled: isEnabled,
-            permissions: permissions.snapshot(),
-            monitorRunning: false,
-            error: message
-        )
     }
 
     private func handleMonitorDiagnostic(_ message: String) {
