@@ -107,7 +107,8 @@
 "interface.checkAgain" = "Check Again";
 "interface.setupPermissions" = "Set Up Permissions…";
 "interface.applications" = "Applications";
-"interface.applicationsHelp" = "Unlisted apps use Standard. Standard: correct only in editable fields confirmed by macOS. Off: never correct. Compatibility: also allow editable groups and apps that do not report a focused field.";
+"interface.spotlightSearchScope" = "Spotlight search, including search in Siri AI";
+"interface.applicationsHelp" = "Unlisted apps use Standard. Standard: correct only in editable fields confirmed by macOS. Off: never correct. Compatibility: correct keyboard input without requiring confirmed field editability, while tracking focus and blocking known password fields.";
 "interface.standardMode" = "Standard";
 "interface.disabledMode" = "Off";
 "interface.compatibilityMode" = "Compatibility";

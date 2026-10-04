@@ -10,9 +10,27 @@ public enum ReplacementExecutionResult: Equatable, Sendable {
 public final class ReplacementExecutor {
     private let eventPoster: EventPosting
     private let inputSources: InputSourceManaging
-    public init(eventPoster: EventPosting, inputSources: InputSourceManaging) { self.eventPoster = eventPoster; self.inputSources = inputSources }
+    private let spotlightTextReplacer: SpotlightTextReplacer
 
-    public func execute(_ plan: ReplacementPlan) -> ReplacementExecutionResult {
+    public convenience init(eventPoster: EventPosting, inputSources: InputSourceManaging) {
+        self.init(eventPoster: eventPoster, inputSources: inputSources, spotlightTextReplacer: .init())
+    }
+
+    init(eventPoster: EventPosting, inputSources: InputSourceManaging, spotlightTextReplacer: SpotlightTextReplacer) {
+        self.eventPoster = eventPoster
+        self.inputSources = inputSources
+        self.spotlightTextReplacer = spotlightTextReplacer
+    }
+
+    public func execute(_ plan: ReplacementPlan, focus: FocusSnapshot? = nil, sourceText: String? = nil) -> ReplacementExecutionResult {
+        if let result = spotlightTextReplacer.replace(plan, focus: focus, sourceText: sourceText) {
+            switch result {
+            case .replaced:
+                return inputSources.select(plan.targetLayout) ? .completed : .textReplacedLayoutUnavailable
+            case .failedBeforeMutation: return .failedBeforeMutation
+            case .partialFailure: return .partialFailure
+            }
+        }
         guard eventPoster.isAvailable else { return .failedBeforeMutation }
         guard eventPoster.postBackspaces(count: plan.deleteKeyCount),
               eventPoster.postUnicode(plan.replacement),
@@ -20,7 +38,7 @@ public final class ReplacementExecutor {
         return inputSources.select(plan.targetLayout) ? .completed : .textReplacedLayoutUnavailable
     }
 
-    public func reverse(_ plan: ReplacementPlan) -> ReplacementExecutionResult {
-        execute(plan)
+    public func reverse(_ plan: ReplacementPlan, focus: FocusSnapshot? = nil, sourceText: String? = nil) -> ReplacementExecutionResult {
+        execute(plan, focus: focus, sourceText: sourceText)
     }
 }

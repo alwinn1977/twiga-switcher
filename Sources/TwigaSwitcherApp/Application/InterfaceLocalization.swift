@@ -56,6 +56,7 @@ public enum InterfaceText: String, CaseIterable, Sendable {
     case applications, applicationsHelp, standardMode, disabledMode, compatibilityMode, compatibilityWarning
     case uncheckedMode, uncheckedWarning
     case addApplication, removeApplication, invalidApplication
+    case spotlightSearchScope
 
     public func localized(_ language: DisplayLanguage, _ arguments: CVarArg...) -> String {
         let format = InterfaceStringResources.bundled.localizedString(forKey: "interface.\(rawValue)", in: language)

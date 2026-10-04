@@ -217,7 +217,7 @@ public final class KeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
             return Unmanaged.passUnretained(event)
         case let .replace(plan):
             let pair = processor.latestDecisionPair
-            let result = executor.execute(plan)
+            let result = executor.execute(plan, focus: focus, sourceText: pair?.source)
             switch result {
             case .completed:
                 if soundEnabled { sound.play() }
@@ -258,7 +258,7 @@ public final class KeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
                   let undo = correctionCoordinator.handleCommandZ(currentFocus: focus.identity) else {
                 return Unmanaged.passUnretained(event)
             }
-            let result = executor.reverse(undo.reversalPlan)
+            let result = executor.reverse(undo.reversalPlan, focus: focus, sourceText: undo.candidate)
             correctionCoordinator.complete(undo, result: result)
             switch result {
             case .completed:
@@ -279,7 +279,7 @@ public final class KeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
                 return Unmanaged.passUnretained(event)
             }
             let pair = processor.latestDecisionPair
-            let result = executor.execute(plan)
+            let result = executor.execute(plan, focus: focus, sourceText: pair?.source)
             switch result {
             case .completed:
                 if let pair { onRuleSuggestion?(pair) }

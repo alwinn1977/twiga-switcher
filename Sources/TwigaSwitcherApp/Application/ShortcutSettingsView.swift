@@ -93,7 +93,9 @@ struct ShortcutSettingsView: View {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(rule.name)
-                            Text(rule.bundleID).font(.caption).foregroundStyle(.secondary)
+                            Text(rule.bundleID == "com.apple.Spotlight"
+                                 ? InterfaceText.spotlightSearchScope.localized(language) : rule.bundleID)
+                                .font(.caption).foregroundStyle(.secondary)
                         }
                         Spacer()
                         Picker(rule.name, selection: Binding(

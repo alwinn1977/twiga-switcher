@@ -3,6 +3,24 @@ import TwigaSwitcherCore
 @testable import TwigaSwitcherApp
 
 final class SystemPolicyTests: XCTestCase {
+    func testSpotlightIsAvailableInApplicationSettingsAndRespectsSavedMode() throws {
+        let suite = "SpotlightApplicationRules-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let store = ApplicationRulesStore(defaults: defaults)
+        let rule = try XCTUnwrap(store.rules.first { $0.bundleID == "com.apple.Spotlight" })
+        XCTAssertEqual(rule.name, "Spotlight")
+        XCTAssertTrue(rule.isBuiltIn)
+        XCTAssertEqual(rule.mode, .compatibility)
+        XCTAssertTrue(FocusSafetyPolicy().allowsApplicationLevelFallback(bundleID: rule.bundleID))
+        store.setMode(.disabled, for: rule.bundleID)
+        let restored = ApplicationRulesStore(defaults: defaults)
+        XCTAssertEqual(restored.rules.first { $0.bundleID == rule.bundleID }?.mode, .disabled)
+        XCTAssertFalse(FocusSafetyPolicy(overrides: restored.overrides).isSafe(.init(
+            bundleID: rule.bundleID, role: "AXTextField", subrole: "AXSearchField", valueIsSettable: true
+        )))
+    }
+
     func testUncheckedApplicationModePersistsAndDoesNotRequireFieldMetadata() throws {
         let unchecked = try XCTUnwrap(ApplicationCorrectionMode(rawValue: "unchecked"))
         let suite = "UncheckedApplicationRules-\(UUID().uuidString)"
@@ -40,7 +58,7 @@ final class SystemPolicyTests: XCTestCase {
             XCTAssertTrue(policy.isSafe(.init(bundleID: id, role: "AXGroup", subrole: nil, valueIsSettable: true)))
             XCTAssertFalse(policy.usesApplicationFocus(bundleID: id))
             XCTAssertFalse(policy.isSafe(.init(bundleID: id, role: "AXTextField", subrole: "AXSecureTextField", valueIsSettable: true)))
-            XCTAssertFalse(policy.isSafe(.init(bundleID: id, role: "AXTextArea", subrole: nil, valueIsSettable: false)))
+            XCTAssertTrue(policy.isSafe(.init(bundleID: id, role: "AXTextArea", subrole: nil, valueIsSettable: false)))
         }
         for id in ["com.apple.TextEdit", "com.apple.Notes", "com.apple.mail"] {
             XCTAssertEqual(store.mode(for: id), .standard)
@@ -120,6 +138,35 @@ final class SystemPolicyTests: XCTestCase {
         XCTAssertFalse(p.isSafe(.init(bundleID: "com.apple.Safari", role: "AXTextField", subrole: "AXSecureTextField", valueIsSettable: true)))
         XCTAssertFalse(p.isSafe(.init(bundleID: "com.apple.TextEdit", role: "AXTextArea", subrole: nil, valueIsSettable: false)))
         XCTAssertTrue(p.isSafe(.init(bundleID: "com.apple.TextEdit", role: "AXTextArea", subrole: nil, valueIsSettable: true)))
+    }
+
+    func testCompatibilityDoesNotRequireAnEditableAccessibilityRoleOrValue() {
+        let id = "com.example.CustomEditor"
+        let policy = FocusSafetyPolicy(overrides: [id: .compatibility])
+        // Custom editors can expose a container, an unknown role, or no role.
+        // None of these describes whether keyboard input is accepted.
+        for role: String? in ["AXScrollArea", "AXGroup", "AXTextArea", "CustomCanvas", nil] {
+            XCTAssertTrue(policy.isSafe(.init(
+                bundleID: id, role: role, subrole: nil, valueIsSettable: false,
+                settableLookupSucceeded: false
+            )), "role=\(role ?? "nil")")
+        }
+    }
+
+    func testCompatibilityStillRejectsSecureFieldsAndFailedSecurityLookups() {
+        let id = "com.example.CustomEditor"
+        let policy = FocusSafetyPolicy(overrides: [id: .compatibility])
+        for descriptor in [
+            FocusDescriptor(bundleID: id, role: "AXTextField", subrole: "AXSecureTextField", valueIsSettable: false),
+            FocusDescriptor(bundleID: id, role: "AXSecureTextField", subrole: nil, valueIsSettable: false),
+            FocusDescriptor(bundleID: id, role: "AXScrollArea", subrole: nil, valueIsSettable: false,
+                            subroleLookupSucceeded: false)
+        ] {
+            XCTAssertFalse(policy.isSafe(descriptor))
+        }
+        let container = FocusDescriptor(bundleID: id, role: "AXScrollArea", subrole: nil, valueIsSettable: false)
+        XCTAssertFalse(FocusSafetyPolicy(overrides: [id: .standard]).isSafe(container))
+        XCTAssertFalse(FocusSafetyPolicy(overrides: [id: .disabled]).isSafe(container))
     }
 
     func testFocusPolicyRejectsUnknownAccessibilityLookups() {

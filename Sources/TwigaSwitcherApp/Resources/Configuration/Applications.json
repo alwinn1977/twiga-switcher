@@ -8,6 +8,7 @@
     { "bundleID": "com.apple.TextEdit", "name": "TextEdit", "mode": "standard" },
     { "bundleID": "com.apple.Notes", "name": "Notes", "mode": "standard" },
     { "bundleID": "com.apple.mail", "name": "Mail", "mode": "standard" },
+    { "bundleID": "com.apple.Spotlight", "name": "Spotlight", "mode": "compatibility" },
     { "bundleID": "com.openai.codex", "name": "Codex", "mode": "compatibility" },
     { "bundleID": "us.zoom.xos", "name": "Zoom Workplace", "mode": "compatibility" }
   ],
