@@ -11,6 +11,11 @@ public struct FocusedInputProcessor<Lexicon: FrequencyLexicon, Rules: UserCorrec
 
     public var latestDecisionPair: CorrectionPair? { pipeline.latestDecisionPair }
 
+    public mutating func setAutomaticCorrectionEnabled(_ enabled: Bool) {
+        pipeline.setAutomaticCorrectionEnabled(enabled)
+        resetBufferFocus()
+    }
+
     public func needsFocusSnapshot(for event: InputEvent) -> Bool {
         switch event {
         case .character:
@@ -69,7 +74,9 @@ public struct FocusedInputProcessor<Lexicon: FrequencyLexicon, Rules: UserCorrec
                 if !pipeline.hasPendingText { bufferedFocus = nil }
                 return outcome
             }
-            guard let focus, focus.identity == bufferedFocus else {
+            let expectedFocus = bufferedFocus
+                ?? (delimiter == " " && pipeline.hasRecentWord ? recentWordFocus : nil)
+            guard let focus, let expectedFocus, focus.identity == expectedFocus else {
                 reset()
                 return .passThrough
             }

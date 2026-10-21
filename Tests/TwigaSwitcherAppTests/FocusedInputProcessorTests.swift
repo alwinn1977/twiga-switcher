@@ -20,6 +20,26 @@ private struct ProcessorLexicon: FrequencyLexicon {
 final class FocusedInputProcessorTests: XCTestCase {
     private let normalizer = KeyboardEventNormalizer(syntheticMarker: 0x4C535743)
 
+    func testManualCorrectionAfterEllipsisAndSpaceRequiresSameFocus() {
+        let first = FocusSnapshot(identity: .init(processID: 10, elementHash: 20))
+        let second = FocusSnapshot(identity: .init(processID: 10, elementHash: 21))
+        for spaceFocus in [first, second] {
+            var processor = makeProcessor()
+            processor.setAutomaticCorrectionEnabled(false)
+            for character in "ghbdtn" {
+                XCTAssertEqual(processor.handle(.character(character), focus: first), .passThrough)
+            }
+            for _ in 0..<3 {
+                XCTAssertEqual(processor.handle(.boundary("."), focus: first), .passThrough)
+            }
+            XCTAssertEqual(processor.handle(.boundary(" "), focus: spaceFocus), .passThrough)
+            let expected: PipelineOutcome = spaceFocus.identity == first.identity ? .replace(.init(
+                deleteKeyCount: 10, replacement: "привет", delimiter: "... ", targetLayout: .russian
+            )) : .passThrough
+            XCTAssertEqual(processor.forceCorrection(focus: spaceFocus), expected)
+        }
+    }
+
     private func makeProcessor() -> FocusedInputProcessor<ProcessorLexicon, NoUserCorrectionRules> {
         FocusedInputProcessor(pipeline: InputPipeline(
             converter: LayoutConverter(),

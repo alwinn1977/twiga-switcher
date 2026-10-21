@@ -25,6 +25,64 @@ private struct ForcedHelloRule: UserCorrectionRuleLookingUp {
 }
 
 final class InputPipelineTests: XCTestCase {
+    func testManualCorrectionKeepsRecognizedFinalLayoutLetterBeforePunctuation() {
+        for (source, delimiter) in [("vty..", "."), ("vty...", "..")] {
+            for afterSpace in [false, true] {
+                var pipeline = makePipeline()
+                pipeline.setAutomaticCorrectionEnabled(false)
+                for character in source {
+                    let event: InputEvent = character == "." ? .boundary(".") : .character(character)
+                    XCTAssertEqual(pipeline.handle(event, focusIsSafe: true), .passThrough)
+                }
+                if afterSpace {
+                    XCTAssertEqual(pipeline.handle(.boundary(" "), focusIsSafe: true), .passThrough)
+                }
+                XCTAssertEqual(pipeline.forceCorrection(focusIsSafe: true), .replace(.init(
+                    deleteKeyCount: source.count + (afterSpace ? 1 : 0),
+                    replacement: "меню", delimiter: delimiter + (afterSpace ? " " : ""), targetLayout: .russian
+                )), source)
+            }
+        }
+    }
+
+    func testManualCorrectionBeforeSpacePreservesEntirePunctuationSuffix() {
+        for suffix in ["..", "...", ",;", ".,;"] {
+            var pipeline = makePipeline()
+            pipeline.setAutomaticCorrectionEnabled(false)
+            for character in "ghbdtn" + suffix {
+                let event: InputEvent = ".,;".contains(character) ? .boundary(String(character)) : .character(character)
+                XCTAssertEqual(pipeline.handle(event, focusIsSafe: true), .passThrough)
+            }
+            XCTAssertEqual(pipeline.forceCorrection(focusIsSafe: true), .replace(.init(
+                deleteKeyCount: 6 + suffix.count, replacement: "привет", delimiter: suffix, targetLayout: .russian
+            )), suffix)
+        }
+    }
+
+    func testManualCorrectionAfterSpacePreservesPunctuationAndRecognizesLayoutLetters() {
+        let cases: [(String, Int, String, String)] = [
+            ("ghbdtn.", 8, "привет", ". "),
+            ("ghbdtn,", 8, "привет", ", "),
+            ("ghbdtn;", 8, "привет", "; "),
+            ("ghbdtn..", 9, "привет", ".. "),
+            ("ghbdtn...", 10, "привет", "... "),
+            ("qzq.", 5, "йяй", ". "),
+            ("vty.", 5, "меню", " "),
+        ]
+        for (source, deletes, replacement, delimiter) in cases {
+            var pipeline = makePipeline()
+            pipeline.setAutomaticCorrectionEnabled(false)
+            for character in source {
+                let event: InputEvent = ".,;".contains(character) ? .boundary(String(character)) : .character(character)
+                XCTAssertEqual(pipeline.handle(event, focusIsSafe: true), .passThrough)
+            }
+            XCTAssertEqual(pipeline.handle(.boundary(" "), focusIsSafe: true), .passThrough)
+            XCTAssertEqual(pipeline.forceCorrection(focusIsSafe: true), .replace(.init(
+                deleteKeyCount: deletes, replacement: replacement, delimiter: delimiter, targetLayout: .russian
+            )), source)
+        }
+    }
+
     private func makePipeline(includeRussianDecoy: Bool = false) -> InputPipeline<PipelineLexicon, NoUserCorrectionRules> {
         var russianEntries: [String: PipelineLexicon.Entry] = [
             "и": .init(score: 7_400, subject: false),

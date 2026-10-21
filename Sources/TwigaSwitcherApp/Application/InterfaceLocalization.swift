@@ -27,6 +27,7 @@ public enum InterfaceLanguage: String, CaseIterable, Sendable {
 public enum InterfaceText: String, CaseIterable, Sendable {
     case automaticCorrectionActive, automaticCorrectionPaused, permissionsRequired
     case enableAutomaticCorrection, requestPermissions, openPrivacySettings, restartMonitor
+    case enableSwitching, switchingMode, automaticMode, hotkeysOnlyMode, hotkeysOnlyActive, hotkeysOnlyPaused
     case dictionaries, rules, settings, dictionariesMenu, rulesMenu, settingsMenu, quit
     case about, aboutDescription, aboutVersion, aboutBuild
     case aboutLicense, aboutLicenseNotice

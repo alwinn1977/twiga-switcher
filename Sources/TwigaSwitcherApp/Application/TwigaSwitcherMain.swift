@@ -13,7 +13,7 @@ struct TwigaSwitcherMain: App {
         } label: {
             Image(nsImage: MenuBarIcon.image(for: controller.state))
                 .accessibilityLabel("Twiga Switcher")
-                .accessibilityValue(controller.state.title(in: controller.displayLanguage))
+                .accessibilityValue(controller.statusTitle)
         }
         Window(InterfaceText.dictionaries.localized(controller.displayLanguage), id: "dictionaries") {
             DictionaryManagerView(controller: controller)
@@ -42,11 +42,20 @@ private struct TwigaSwitcherMenu: View {
     private var language: DisplayLanguage { controller.displayLanguage }
 
     var body: some View {
-        Text(controller.state.title(in: language))
-        Toggle(InterfaceText.enableAutomaticCorrection.localized(language), isOn: Binding(
+        Text(controller.statusTitle)
+        Toggle(InterfaceText.enableSwitching.localized(language), isOn: Binding(
             get: { controller.isEnabled },
             set: { controller.setEnabled($0) }
         ))
+        Picker(InterfaceText.switchingMode.localized(language), selection: Binding(
+            get: { controller.correctionMode },
+            set: { controller.setCorrectionMode($0) }
+        )) {
+            ForEach(CorrectionMode.allCases, id: \.self) { mode in
+                Text(mode.title(in: language)).tag(mode)
+            }
+        }
+        .pickerStyle(.inline)
         if controller.state == .permissionsRequired {
             Button(InterfaceText.setupPermissions.localized(language)) { showWindow(id: "settings") }
         }

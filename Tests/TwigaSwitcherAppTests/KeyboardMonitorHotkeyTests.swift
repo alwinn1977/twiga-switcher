@@ -28,6 +28,79 @@ private final class RecordingSound: LayoutSwitchSoundPlaying {
 }
 
 final class KeyboardMonitorHotkeyTests: XCTestCase {
+    func testManualModeWaitsForShortcutAndDoesNotOfferRules() throws {
+        let fixture = try makeFixture()
+        defer { fixture.cleanup() }
+        fixture.monitor.setCorrectionMode(.manual)
+        var suggestions: [CorrectionPair] = []
+        fixture.monitor.onRuleSuggestion = { suggestions.append($0) }
+
+        for character in "ghbdtn" {
+            XCTAssertTrue(send(String(character), to: fixture.monitor))
+        }
+        XCTAssertTrue(send(" ", keyCode: 49, to: fixture.monitor))
+        XCTAssertTrue(fixture.poster.unicode.isEmpty)
+        XCTAssertTrue(fixture.sources.selected.isEmpty)
+        XCTAssertEqual(fixture.sound.count, 0)
+
+        XCTAssertFalse(send("", keyCode: 37, flags: [.maskControl, .maskAlternate], to: fixture.monitor))
+        XCTAssertEqual(fixture.poster.backspaces, [7])
+        XCTAssertEqual(fixture.poster.unicode, ["привет", " "])
+        XCTAssertEqual(fixture.sources.selected, [.russian])
+        XCTAssertEqual(fixture.sound.count, 1)
+        XCTAssertTrue(suggestions.isEmpty)
+
+        XCTAssertFalse(send("", keyCode: 37, flags: [.maskControl, .maskAlternate], to: fixture.monitor))
+        XCTAssertEqual(fixture.poster.unicode, ["привет", " ", "ghbdtn", " "])
+        XCTAssertTrue(suggestions.isEmpty)
+    }
+
+    func testManualModePreservesPunctuationAndSupportsUndo() throws {
+        let fixture = try makeFixture()
+        defer { fixture.cleanup() }
+        fixture.monitor.setCorrectionMode(.manual)
+        var suggestions: [CorrectionPair] = []
+        fixture.monitor.onRuleSuggestion = { suggestions.append($0) }
+
+        for character in "lf" { send(String(character), to: fixture.monitor) }
+        XCTAssertTrue(send("!", keyCode: 18, flags: [.maskShift], to: fixture.monitor))
+        XCTAssertTrue(fixture.poster.unicode.isEmpty)
+        XCTAssertFalse(send("", keyCode: 37, flags: [.maskControl, .maskAlternate], to: fixture.monitor))
+        XCTAssertEqual(fixture.poster.unicode, ["да", "!"])
+        XCTAssertFalse(send("", keyCode: 6, flags: [.maskControl, .maskAlternate], to: fixture.monitor))
+        XCTAssertEqual(fixture.poster.unicode, ["да", "!", "lf", "!"])
+        XCTAssertTrue(suggestions.isEmpty)
+    }
+
+    func testManualModeCorrectsUnfinishedWordAndKeepsFocusSafety() throws {
+        let fixture = try makeFixture()
+        defer { fixture.cleanup() }
+        fixture.monitor.setCorrectionMode(.manual)
+        for character in "ghbdtn" { send(String(character), to: fixture.monitor) }
+        XCTAssertTrue(fixture.poster.unicode.isEmpty)
+        XCTAssertFalse(send("", keyCode: 37, flags: [.maskControl, .maskAlternate], to: fixture.monitor))
+        XCTAssertEqual(fixture.poster.unicode, ["привет"])
+
+        let mouse = try XCTUnwrap(CGEvent(mouseEventSource: CGEventSource(stateID: .hidSystemState),
+                                        mouseType: .leftMouseDown, mouseCursorPosition: .zero, mouseButton: .left))
+        _ = fixture.monitor.handle(type: .leftMouseDown, event: mouse)
+        XCTAssertTrue(send("", keyCode: 37, flags: [.maskControl, .maskAlternate], to: fixture.monitor))
+        XCTAssertEqual(fixture.poster.unicode, ["привет"])
+    }
+
+    func testChangingModeClearsBufferedWordAndRestoresAutomaticCorrection() throws {
+        let fixture = try makeFixture()
+        defer { fixture.cleanup() }
+        for character in "ghb" { send(String(character), to: fixture.monitor) }
+        fixture.monitor.setCorrectionMode(.manual)
+        XCTAssertTrue(send("", keyCode: 37, flags: [.maskControl, .maskAlternate], to: fixture.monitor))
+        for character in "ghb" { send(String(character), to: fixture.monitor) }
+        fixture.monitor.setCorrectionMode(.automatic)
+        XCTAssertTrue(send("", keyCode: 37, flags: [.maskControl, .maskAlternate], to: fixture.monitor))
+        for character in "ghbd" { send(String(character), to: fixture.monitor) }
+        XCTAssertEqual(fixture.poster.unicode, ["прив"])
+    }
+
     func testRepeatedTapTimeoutsDoNotPermanentlyStopMonitoring() throws {
         let fixture = try makeFixture()
         defer { fixture.cleanup() }

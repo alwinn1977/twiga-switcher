@@ -8,10 +8,16 @@ public struct InputPipeline<Lexicon: FrequencyLexicon, Rules: UserCorrectionRule
     private var recentWord: RecentWord?
     private var converter: LayoutConverter
     private let detector: LanguageDetector<Lexicon, Rules>
+    private var automaticCorrectionEnabled = true
     public private(set) var latestDecisionPair: CorrectionPair?
 
     public init(converter: LayoutConverter, detector: LanguageDetector<Lexicon, Rules>) {
         self.converter = converter; self.detector = detector
+    }
+
+    public mutating func setAutomaticCorrectionEnabled(_ enabled: Bool) {
+        automaticCorrectionEnabled = enabled
+        reset()
     }
 
     public var hasPendingText: Bool { buffer.hasPendingText }
@@ -19,7 +25,7 @@ public struct InputPipeline<Lexicon: FrequencyLexicon, Rules: UserCorrectionRule
     public var hasCurrentWord: Bool { buffer.currentWord != nil }
 
     public func wouldCorrectWhileTyping(_ event: InputEvent) -> Bool {
-        guard case .character = event else { return false }
+        guard automaticCorrectionEnabled, case .character = event else { return false }
         var preview = buffer
         _ = preview.handle(event)
         return liveConversion(in: preview) != nil
@@ -38,9 +44,17 @@ public struct InputPipeline<Lexicon: FrequencyLexicon, Rules: UserCorrectionRule
             return handlePunctuation(text: text, english: english, russian: russian, focusIsSafe: focusIsSafe)
         }
         latestDecisionPair = nil
+        let previousRecentWord = recentWord
         recentWord = nil
         let result = buffer.handle(event)
-        if case .character = event, focusIsSafe,
+        if !automaticCorrectionEnabled, case .emptyBoundary(" ") = result,
+           let previousRecentWord,
+           previousRecentWord.delimiter.allSatisfy({ ".,;".contains($0) }) {
+            recentWord = RecentWord(candidate: previousRecentWord.candidate,
+                                    delimiter: previousRecentWord.delimiter + " ")
+            return .passThrough
+        }
+        if case .character = event, automaticCorrectionEnabled, focusIsSafe,
            let (word, conversion) = liveConversion(in: buffer) {
             latestDecisionPair = .init(source: word.text, candidate: conversion.text)
             buffer.replaceUnfinishedWord(with: conversion.text)
@@ -62,6 +76,14 @@ public struct InputPipeline<Lexicon: FrequencyLexicon, Rules: UserCorrectionRule
            let last = candidates.last {
             recentWord = RecentWord(candidate: last, delimiter: delimiter)
             buffer.resolve(result, disposition: .deferForPhrase(longest))
+            return .passThrough
+        }
+
+        guard automaticCorrectionEnabled else {
+            if let last = candidates.last {
+                recentWord = separatingTrailingPunctuation(from: last, delimiter: delimiter)
+            }
+            buffer.resolve(result, disposition: .discard)
             return .passThrough
         }
 
@@ -132,41 +154,36 @@ public struct InputPipeline<Lexicon: FrequencyLexicon, Rules: UserCorrectionRule
         return .passThrough
     }
 
+    private func isRecognizedCorrection(_ text: String) -> Bool {
+        guard let conversion = converter.convert(text),
+              case .correct = detector.decision(original: text, conversion: conversion) else { return false }
+        return true
+    }
+
+    private func separatingTrailingPunctuation(from candidate: BufferedCandidate, delimiter: String) -> RecentWord {
+        var text = candidate.text
+        var punctuation = ""
+        while let last = text.last, ".,;".contains(last), !isRecognizedCorrection(text) {
+            text.removeLast()
+            punctuation.insert(last, at: punctuation.startIndex)
+        }
+        return RecentWord(candidate: .init(
+            text: text, physicalKeyCount: candidate.physicalKeyCount - punctuation.count
+        ), delimiter: punctuation + delimiter)
+    }
+
     public mutating func forceCorrection(focusIsSafe: Bool) -> PipelineOutcome {
         guard focusIsSafe else { return .passThrough }
-        let candidate: BufferedCandidate
-        let delimiter: String
+        let word: RecentWord
         if let current = buffer.currentWord {
-            if let recentWord,
-               [".", ",", ";"].contains(recentWord.delimiter),
-               current.text.hasSuffix(recentWord.candidate.text + recentWord.delimiter) {
-                let fullConversion = converter.convert(current.text)
-                let fullIsRecognizedCorrection = fullConversion.map {
-                    if case .correct = detector.decision(original: current.text, conversion: $0) {
-                        return true
-                    }
-                    return false
-                } ?? false
-                if fullIsRecognizedCorrection {
-                    candidate = current
-                    delimiter = ""
-                } else {
-                    candidate = .init(
-                        text: String(current.text.dropLast(recentWord.delimiter.count)),
-                        physicalKeyCount: current.physicalKeyCount - recentWord.delimiter.count
-                    )
-                    delimiter = recentWord.delimiter
-                }
-            } else {
-                candidate = current
-                delimiter = ""
-            }
+            word = separatingTrailingPunctuation(from: current, delimiter: "")
         } else if let recentWord {
-            candidate = recentWord.candidate
-            delimiter = recentWord.delimiter
+            word = separatingTrailingPunctuation(from: recentWord.candidate, delimiter: recentWord.delimiter)
         } else {
             return .passThrough
         }
+        let candidate = word.candidate
+        let delimiter = word.delimiter
         guard let conversion = converter.convert(candidate.text) else { return .passThrough }
         reset()
         latestDecisionPair = CorrectionPair(source: candidate.text, candidate: conversion.text)
@@ -192,7 +209,7 @@ public struct InputPipeline<Lexicon: FrequencyLexicon, Rules: UserCorrectionRule
         }
         var preview = buffer
         let result = preview.handle(.boundary(text))
-        if focusIsSafe, case let .candidates(candidates, _) = result {
+        if automaticCorrectionEnabled, focusIsSafe, case let .candidates(candidates, _) = result {
             for word in candidates {
                 guard let conversion = converter.convert(word.text),
                       case let .correct(replacement, layout) = detector.decision(

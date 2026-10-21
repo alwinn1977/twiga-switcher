@@ -36,6 +36,7 @@ public enum BundledLexiconResourceError: Error, Equatable, Sendable {
 }
 
 public enum BundledLexiconResources {
+    public static let computerTermsVersion = "1.1.0"
     private static let expectedWheelSHA256 = "4b1c6ecffc6198be3396d5cf871c4423ca71c907c231348d352dd54d62b97473"
 
     public static func loadBase() throws -> BundledBaseLexicons {
@@ -114,7 +115,7 @@ public enum BundledLexiconResources {
               manifest.schemaVersion == 1,
               manifest.minimumScore == 0,
               manifest.source.name == "dev.twigaswitcher.dictionary.computer-terms",
-              manifest.source.version == "1.0.0",
+              manifest.source.version == computerTermsVersion,
               manifest.source.sha256 == "project-authored",
               manifest.source.license == "CC0-1.0" else {
             throw BundledLexiconResourceError.invalidManifest

@@ -3,9 +3,9 @@
     "license" : "CC0-1.0",
     "source" : "TwigaSwitcher project-authored terminology"
   },
-  "description" : "Common software development, infrastructure, database, security, hardware, and AI terminology.",
+  "description" : "Software development, infrastructure, databases, security, AI, developer tools, digital services, and Russian IT slang with common inflected forms.",
   "identifier" : "dev.twigaswitcher.dictionary.computer-terms",
   "name" : "Computer Terms",
   "schemaVersion" : 1,
-  "version" : "1.0.0"
+  "version" : "1.1.0"
 }

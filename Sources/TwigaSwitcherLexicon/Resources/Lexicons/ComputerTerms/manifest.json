@@ -1,16 +1,16 @@
 {
   "indexes" : {
     "en" : {
-      "entryCount" : 105,
+      "entryCount" : 766,
       "file" : "en.lsidx",
       "maximumPhraseWords" : 3,
-      "sha256" : "d13f145f651e00aac0346444a4eddfa941bdc91f797aa020dbfc28f75855b722"
+      "sha256" : "139200e4f5c3ff3bb4d3cc6c4c70e0f0aacff8a1217748d92b10de6d358277e4"
     },
     "ru" : {
-      "entryCount" : 34,
+      "entryCount" : 545,
       "file" : "ru.lsidx",
       "maximumPhraseWords" : 3,
-      "sha256" : "c3ddcc2ee237298a450155a7b145b5fde8afe6cb5e53c042818f67607f63f294"
+      "sha256" : "c01dc3e45aec66488f3d2d58d7c7eced683be3d980a0e041ff19dceb11677b10"
     }
   },
   "minimumScore" : 0,
@@ -19,6 +19,6 @@
     "license" : "CC0-1.0",
     "name" : "dev.twigaswitcher.dictionary.computer-terms",
     "sha256" : "project-authored",
-    "version" : "1.0.0"
+    "version" : "1.1.0"
   }
 }

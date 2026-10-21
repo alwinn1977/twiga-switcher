@@ -42,6 +42,7 @@ private final class StubKeyboardMonitor: KeyboardMonitoring, @unchecked Sendable
 
     func setHotkeys(_ hotkeys: HotkeyConfiguration) { configuredHotkeys = hotkeys }
     func setSoundEnabled(_ enabled: Bool) { configuredSound = enabled }
+    func setCorrectionMode(_ mode: CorrectionMode) {}
     func reloadDictionaries() async {}
 }
 
@@ -70,6 +71,64 @@ private final class StubLoginItemManager: LoginItemManaging {
 }
 
 final class AppStateTests: XCTestCase {
+    @MainActor
+    func testAutomaticModeIsEnabledByDefaultAndInvalidStoredModeFallsBackToAutomatic() throws {
+        let suite = "CorrectionModeDefault-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        for storedMode in [nil, "unknown"] as [String?] {
+            defaults.set(storedMode, forKey: "correctionMode")
+            let controller = AppController(permissions: StubPermissionManager(), monitor: StubKeyboardMonitor(),
+                                           defaults: defaults)
+            XCTAssertTrue(controller.isEnabled)
+            XCTAssertEqual(controller.correctionMode, .automatic)
+            XCTAssertEqual(controller.state, .active)
+        }
+    }
+
+    @MainActor
+    func testManualModePersistsWithoutStoppingMonitorAndCanBePaused() throws {
+        let suite = "CorrectionModePersistence-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let monitor = StubKeyboardMonitor()
+        let controller = AppController(permissions: StubPermissionManager(), monitor: monitor, defaults: defaults)
+        controller.setCorrectionMode(.manual)
+        XCTAssertTrue(monitor.isRunning)
+        XCTAssertEqual(controller.state, .active)
+        XCTAssertEqual(controller.statusTitle, InterfaceText.hotkeysOnlyActive.localized(controller.displayLanguage))
+
+        let restored = AppController(permissions: StubPermissionManager(), monitor: StubKeyboardMonitor(), defaults: defaults)
+        XCTAssertTrue(restored.isEnabled)
+        XCTAssertEqual(restored.correctionMode, .manual)
+        restored.setEnabled(false)
+        XCTAssertEqual(restored.state, .paused)
+        restored.setEnabled(true)
+        XCTAssertEqual(restored.correctionMode, .manual)
+        restored.setCorrectionMode(.automatic)
+        XCTAssertEqual(restored.state, .active)
+        XCTAssertEqual(restored.statusTitle, AppState.active.title(in: restored.displayLanguage))
+    }
+
+    @MainActor
+    func testManualModeDismissesPendingSuggestionAndIgnoresNewSuggestions() throws {
+        let suite = "ManualRuleSuggestions-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let monitor = StubKeyboardMonitor()
+        let controller = AppController(permissions: StubPermissionManager(), monitor: monitor, defaults: defaults)
+        let pair = CorrectionPair(source: "ghbdtn", candidate: "привет")
+        monitor.onRuleSuggestion?(pair)
+        XCTAssertEqual(controller.pendingRuleSuggestion, pair)
+        controller.setCorrectionMode(.manual)
+        XCTAssertNil(controller.pendingRuleSuggestion)
+        monitor.onRuleSuggestion?(pair)
+        XCTAssertNil(controller.pendingRuleSuggestion)
+        controller.setCorrectionMode(.automatic)
+        monitor.onRuleSuggestion?(pair)
+        XCTAssertEqual(controller.pendingRuleSuggestion, pair)
+    }
+
     @MainActor
     func testLaunchAtLoginDefaultsOffWithoutRegisteringAtStartup() {
         let loginItem = StubLoginItemManager()

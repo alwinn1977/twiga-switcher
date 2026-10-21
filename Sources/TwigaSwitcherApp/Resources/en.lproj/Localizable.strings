@@ -4,6 +4,12 @@
 "interface.automaticCorrectionPaused" = "Automatic correction is paused";
 "interface.permissionsRequired" = "Permissions required";
 "interface.enableAutomaticCorrection" = "Enable Automatic Correction";
+"interface.enableSwitching" = "Enable Switching";
+"interface.switchingMode" = "Switching Mode";
+"interface.automaticMode" = "Automatically";
+"interface.hotkeysOnlyMode" = "Hotkeys Only";
+"interface.hotkeysOnlyActive" = "Hotkey switching is active";
+"interface.hotkeysOnlyPaused" = "Hotkey switching is paused";
 "interface.requestPermissions" = "Request Required Permissions";
 "interface.openPrivacySettings" = "Open Privacy Settings";
 "interface.restartMonitor" = "Restart Monitor";

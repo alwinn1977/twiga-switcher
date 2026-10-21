@@ -23,6 +23,7 @@ public protocol KeyboardMonitoring: AnyObject, Sendable {
     func setRule(_ disposition: UserCorrectionDisposition, for pair: CorrectionPair) throws
     func setHotkeys(_ hotkeys: HotkeyConfiguration)
     func setSoundEnabled(_ enabled: Bool)
+    func setCorrectionMode(_ mode: CorrectionMode)
     func reloadDictionaries() async
 }
 
@@ -42,6 +43,7 @@ public final class KeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
     private let sound: any LayoutSwitchSoundPlaying
     private var hotkeys: HotkeyConfiguration
     private var soundEnabled: Bool
+    private var correctionMode: CorrectionMode = .automatic
     private var tap: CFMachPort?
     private var source: CFRunLoopSource?
     private var activationObserver: NSObjectProtocol?
@@ -171,6 +173,13 @@ public final class KeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
         soundEnabled = enabled
     }
 
+    public func setCorrectionMode(_ mode: CorrectionMode) {
+        guard correctionMode != mode else { return }
+        correctionMode = mode
+        processor.setAutomaticCorrectionEnabled(mode == .automatic)
+        correctionCoordinator.invalidate()
+    }
+
     func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
             resetBuffer()
@@ -282,7 +291,7 @@ public final class KeyboardMonitor: KeyboardMonitoring, @unchecked Sendable {
             let result = executor.execute(plan, focus: focus, sourceText: pair?.source)
             switch result {
             case .completed:
-                if let pair { onRuleSuggestion?(pair) }
+                if correctionMode == .automatic, let pair { onRuleSuggestion?(pair) }
                 if soundEnabled { sound.play() }
                 if let pair {
                     correctionCoordinator.record(.init(

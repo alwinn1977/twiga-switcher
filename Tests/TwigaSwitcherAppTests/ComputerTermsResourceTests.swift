@@ -3,6 +3,78 @@ import TwigaSwitcherLexicon
 import XCTest
 
 final class ComputerTermsResourceTests: XCTestCase {
+    func testExpandedPackCoversServicesDeveloperToolsAndRussianWorkVocabulary() throws {
+        let terms = try BundledLexiconResources.loadComputerTerms()
+        for term in [
+            "GitLab", "Jira", "Confluence", "Figma", "FFmpeg", "Fornex", "Bitrix", "RuStore",
+            "Yandex", "Ozon", "Ostrovok", "ChatGPT", "Claude", "Cursor", "Rider", "DataGrip",
+            "Grafana", "Prometheus", "Elasticsearch", "ClickHouse", "RabbitMQ", "Terraform",
+            "DWH", "PWA", "GPON", "SNI", "XSLT", "MKV", "MSDOS", "QA", "RC", "AFK", "H2"
+        ] {
+            XCTAssertTrue(terms.lookup(term, language: .english).isSubjectTerm, term)
+        }
+        for term in [
+            "апрув", "заапрувь", "заапрувить", "заапрувили", "юзай", "юзаешь", "юзать",
+            "дефолтную", "опенсорсным", "эпик", "эпика", "гитхаб", "нейропомощник",
+            "задеплой", "закоммить", "запушь", "заревьюй", "смёржи", "хардкодом",
+            "пайплайн", "эндпоинт", "бэкенд", "фронтенд", "рефакторинг", "чекаут"
+        ] {
+            XCTAssertTrue(terms.lookup(term, language: .russian).isSubjectTerm, term)
+        }
+    }
+
+    func testDictionaryReplacesGeneralTermsWithoutPersonalAlwaysRules() throws {
+        let base = try BundledLexiconResources.loadBase()
+        let terms = try BundledLexiconResources.loadComputerTerms()
+        let detector = LanguageDetector(lexicon: LexiconCatalogSnapshot(
+            baseLexicons: [base.english, base.russian], subjectLexicons: [terms]
+        ), rules: NoUserCorrectionRules())
+        let pairs = [
+            ("pffghedm", "заапрувь"), ("fghed", "апрув"), (".pfq", "юзай"),
+            (".pftim", "юзаешь"), ("jgtycjhcysv", "опенсорсным"), ("ltajknye.", "дефолтную"),
+            ("ubn[f,", "гитхаб"), ("ytqhjgjvjoybr", "нейропомощник"),
+            ("ааьзуп", "ffmpeg"), ("ашпьф", "figma"), ("ащктуч", "fornex"),
+            ("вцр", "dwh"), ("зцф", "pwa"), ("ишекшч", "bitrix"),
+            ("кгыещку", "rustore"), ("нфтвуч", "yandex"), ("пзщт", "gpon"),
+            ("чыде", "xslt"), ("щфь", "oam"), ("щыекщмщл", "ostrovok"),
+            ("щящт", "ozon"), ("ытш", "sni"), ("ьлм", "mkv"), ("ьывщы", "msdos")
+        ]
+        for (source, target) in pairs {
+            let conversion = try XCTUnwrap(LayoutConverter().convert(source))
+            XCTAssertEqual(conversion.text, target)
+            XCTAssertEqual(detector.decision(original: source, conversion: conversion), .correct(
+                text: target, targetLayout: conversion.targetLayout
+            ), source)
+            let reverse = try XCTUnwrap(LayoutConverter().convert(target))
+            XCTAssertNotEqual(detector.decision(original: target, conversion: reverse), .correct(
+                text: reverse.text, targetLayout: reverse.targetLayout
+            ), target)
+        }
+    }
+
+    func testExpandedVocabularyWorksWithPhysicalTypingAndPunctuation() throws {
+        let expected = "Заапрувь деплой в GitLab и проверь Figma, FFmpeg, nginx, h2. и nalog.ru, юзай дефолтную ветку.\n"
+        for mode in [TypingMode.automatic, .manualAtScriptChanges] {
+            let session = try TypingSessionDriver(initialLayout: .english)
+            let trace = try session.type(expected, mode: mode)
+            XCTAssertEqual(trace.editorText, expected, trace.firstDivergence)
+        }
+    }
+
+    func testComputerVocabularyPreservesCommonWordsAndAbbreviations() throws {
+        let base = try BundledLexiconResources.loadBase()
+        let terms = try BundledLexiconResources.loadComputerTerms()
+        let detector = LanguageDetector(lexicon: LexiconCatalogSnapshot(
+            baseLexicons: [base.english, base.russian], subjectLexicons: [terms]
+        ), rules: NoUserCorrectionRules())
+        for word in ["а", "и", "в", "на", "по", "за", "до", "из", "не", "он", "она", "мы", "ты", "вы", "да", "нет", "это", "для", "уже", "тут", "мл", "МГУ", "LTD", "гм", "СВТ", "КС", "ЕД", "Vue", "uv", "CDN", "RC", "TL", "VK", "дев"] {
+            let conversion = try XCTUnwrap(LayoutConverter().convert(word))
+            XCTAssertNotEqual(detector.decision(original: word, conversion: conversion), .correct(
+                text: conversion.text, targetLayout: conversion.targetLayout
+            ), word)
+        }
+    }
+
     func testComputerTermsPackCoversRequiredWordsPhrasesAndPunctuation() throws {
         let pack = try BundledLexiconResources.loadComputerTerms()
 

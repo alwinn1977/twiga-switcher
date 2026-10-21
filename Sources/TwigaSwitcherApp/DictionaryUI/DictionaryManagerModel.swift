@@ -108,7 +108,7 @@ public final class DictionaryManagerModel: ObservableObject {
             DictionaryManagerRow(
                 id: "dev.twigaswitcher.dictionary.computer-terms",
                 name: "Computer Terms",
-                version: "1.0.0",
+                version: BundledLexiconResources.computerTermsVersion,
                 detail: "Built-in subject dictionary",
                 isBase: false,
                 isBuiltIn: true,

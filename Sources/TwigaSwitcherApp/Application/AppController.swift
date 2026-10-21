@@ -7,6 +7,7 @@ import ServiceManagement
 public final class AppController: ObservableObject {
     @Published public private(set) var state: AppState = .paused
     @Published public private(set) var isEnabled: Bool
+    @Published public private(set) var correctionMode: CorrectionMode
     @Published public private(set) var pendingRuleSuggestion: CorrectionPair?
     @Published public private(set) var missingLayouts: [KeyboardLayout] = []
     private let presentDialogs: Bool
@@ -53,6 +54,8 @@ public final class AppController: ObservableObject {
         self.isEnabled = initialEnabled
             ?? defaults.object(forKey: "automaticCorrectionEnabled") as? Bool
             ?? true
+        self.correctionMode = CorrectionMode(rawValue: defaults.string(forKey: "correctionMode") ?? "") ?? .automatic
+        monitor.setCorrectionMode(correctionMode)
         monitor.setHotkeys(hotkeys)
         monitor.setSoundEnabled(soundEnabled)
         monitor.onDiagnostic = { [weak self] message in
@@ -85,6 +88,8 @@ public final class AppController: ObservableObject {
             : InterfaceText.englishInputSourceUnavailable.localized(.english) }.joined(separator: "\n")
     }
 
+    public var statusTitle: String { state.title(in: displayLanguage, mode: correctionMode) }
+
     private func updateInputSourceStatus() {
         let previous = missingLayouts
         missingLayouts = monitor.missingLayouts
@@ -101,7 +106,7 @@ public final class AppController: ObservableObject {
     }
 
     private func offerRule(_ pair: CorrectionPair) {
-        guard pendingRuleSuggestion != pair else { return }
+        guard correctionMode == .automatic, pendingRuleSuggestion != pair else { return }
         pendingRuleSuggestion = pair
         guard presentDialogs else { return }
         // Present outside the event-tap callback; the immutable pair survives typing,
@@ -136,6 +141,14 @@ public final class AppController: ObservableObject {
         defaults.set(enabled, forKey: "automaticCorrectionEnabled")
         lastError = nil
         refresh()
+    }
+
+    public func setCorrectionMode(_ mode: CorrectionMode) {
+        guard correctionMode != mode else { return }
+        correctionMode = mode
+        defaults.set(mode.rawValue, forKey: "correctionMode")
+        monitor.setCorrectionMode(mode)
+        if mode == .manual { dismissRuleSuggestion() }
     }
 
     public func refresh() {

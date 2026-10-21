@@ -1,3 +1,12 @@
+public enum CorrectionMode: String, CaseIterable, Sendable {
+    case automatic
+    case manual
+
+    public func title(in language: DisplayLanguage) -> String {
+        (self == .automatic ? InterfaceText.automaticMode : .hotkeysOnlyMode).localized(language)
+    }
+}
+
 public enum AppState: Equatable, Sendable {
     case active
     case paused
@@ -20,10 +29,12 @@ public enum AppState: Equatable, Sendable {
         }
     }
 
-    public func title(in language: DisplayLanguage) -> String {
+    public func title(in language: DisplayLanguage, mode: CorrectionMode = .automatic) -> String {
         switch self {
-        case .active: return InterfaceText.automaticCorrectionActive.localized(language)
-        case .paused: return InterfaceText.automaticCorrectionPaused.localized(language)
+        case .active:
+            return (mode == .automatic ? InterfaceText.automaticCorrectionActive : .hotkeysOnlyActive).localized(language)
+        case .paused:
+            return (mode == .automatic ? InterfaceText.automaticCorrectionPaused : .hotkeysOnlyPaused).localized(language)
         case .permissionsRequired: return InterfaceText.permissionsRequired.localized(language)
         case let .error(message): return InterfaceText.diagnostic(message, in: language)
         }

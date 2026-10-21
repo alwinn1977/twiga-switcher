@@ -4,6 +4,12 @@
 "interface.automaticCorrectionPaused" = "Автопереключение приостановлено";
 "interface.permissionsRequired" = "Требуются разрешения";
 "interface.enableAutomaticCorrection" = "Включить автопереключение";
+"interface.enableSwitching" = "Включить переключение";
+"interface.switchingMode" = "Режим переключения";
+"interface.automaticMode" = "Автоматически";
+"interface.hotkeysOnlyMode" = "Только горячие клавиши";
+"interface.hotkeysOnlyActive" = "Переключение по горячим клавишам включено";
+"interface.hotkeysOnlyPaused" = "Переключение по горячим клавишам приостановлено";
 "interface.requestPermissions" = "Запросить разрешения";
 "interface.openPrivacySettings" = "Открыть настройки конфиденциальности";
 "interface.restartMonitor" = "Перезапустить перехват клавиш";

@@ -25,6 +25,7 @@ final class DictionaryManagerModelTests: XCTestCase {
         )
         let base = try XCTUnwrap(model.rows.first { $0.isBase })
         let builtIn = try XCTUnwrap(model.rows.first { $0.id.contains("computer-terms") })
+        XCTAssertEqual(builtIn.version, try BundledLexiconResources.loadComputerTerms().manifest.source.version)
 
         await model.setEnabled(false, row: base)
         await model.remove(base)

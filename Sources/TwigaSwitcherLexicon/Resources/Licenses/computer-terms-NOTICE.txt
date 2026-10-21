@@ -5,4 +5,20 @@ The terminology and scores in this package were authored for TwigaSwitcher
 and are dedicated to the public domain under CC0 1.0. No third-party word list
 was copied to create this package.
 
+Version 1.1.0 expands developer tools, services, protocols, file formats,
+workflow vocabulary, and Russian IT slang. Common Russian inflections are
+explicit dictionary entries. Private project identifiers, personal names,
+and misspellings from local rules are excluded.
+
+Short ambiguous terms have reduced scores to preserve correctly typed common
+words and abbreviations, including мл, МГУ, СВТ, КС, ЕД, гм, and LTD.
+
+Selected product-name references (spelling checks, not imported word lists):
+  https://www.jetbrains.com/products/
+  https://www.atlassian.com/software/free
+  https://grafana.com/oss/tempo/
+  https://fornex.com/
+  https://www.rustore.ru/
+  https://ostrovok.ru/
+
 License: https://creativecommons.org/publicdomain/zero/1.0/

@@ -5,11 +5,29 @@ The terminology and frequency scores in this package were authored for the
 TwigaSwitcher project and are dedicated to the public domain under CC0 1.0.
 No third-party word list was copied to create this package.
 
+Version 1.1.0 expands developer tools, services, protocols, file formats,
+workflow vocabulary, and Russian IT slang. Russian inflections are explicit
+entries; they are not spelling correction rules. Private project identifiers,
+personal names, and misspellings from local rules are not included.
+
+Selected product-name references (spelling checks, not imported word lists):
+  https://www.jetbrains.com/products/
+  https://www.atlassian.com/software/free
+  https://grafana.com/oss/tempo/
+  https://fornex.com/
+  https://www.rustore.ru/
+  https://ostrovok.ru/
+
 Scoring rubric:
   5200  ubiquitous platform or development term
   4800  broadly used professional term
   4400  common specialized term
   4000  recognizable product, protocol, or punctuation-bearing term
   3600  narrower specialist term
+
+Collision-sensitive short terms can use 2400, 3000, 3400, or 3600 instead
+of the category score. These keep common correctly typed words/abbreviations
+(such as мл, МГУ, СВТ, КС, ЕД, гм, and LTD) unchanged in either direction.
+Scores below 4000 do not initiate early switching while typing.
 
 License: https://creativecommons.org/publicdomain/zero/1.0/

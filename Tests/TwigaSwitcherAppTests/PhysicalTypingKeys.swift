@@ -8,6 +8,10 @@ struct PhysicalStroke {
 }
 
 enum PhysicalTypingKeys {
+    private static let digits: [(CGKeyCode, Character)] = [
+        (18, "1"), (19, "2"), (20, "3"), (21, "4"), (23, "5"),
+        (22, "6"), (26, "7"), (28, "8"), (25, "9"), (29, "0")
+    ]
     // ABC and RussianWin glyphs at the same physical key positions.
     private static let positions: [(CGKeyCode, Character, Character)] = [
         (50, "`", "ё"), (12, "q", "й"), (13, "w", "ц"), (14, "e", "у"), (15, "r", "к"),
@@ -20,6 +24,9 @@ enum PhysicalTypingKeys {
     ]
 
     static func stroke(for intended: Character, language: KeyboardLayout) -> PhysicalStroke? {
+        if let digit = digits.first(where: { $0.1 == intended }) {
+            return .init(keyCode: digit.0, flags: [], expectedLanguage: language)
+        }
         if intended == " " { return .init(keyCode: 49, flags: [], expectedLanguage: language) }
         if intended == "\n" { return .init(keyCode: 36, flags: [], expectedLanguage: language) }
         if intended == "+" { return .init(keyCode: 24, flags: .maskShift, expectedLanguage: language) }
@@ -70,6 +77,7 @@ enum PhysicalTypingKeys {
             if activeLayout == .russian { return stroke.flags.contains(.maskShift) ? "," : "." }
             return stroke.flags.contains(.maskShift) ? "?" : "/"
         }
+        if let digit = digits.first(where: { $0.0 == stroke.keyCode }) { return String(digit.1) }
         guard let position = positions.first(where: { $0.0 == stroke.keyCode }) else { return "\u{FFFD}" }
         let character = activeLayout == .english ? position.1 : position.2
         return stroke.flags.contains(.maskShift) ? String(character).uppercased() : String(character)
